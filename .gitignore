@@ -1,3 +1,6 @@
+# Mask data for now
+example_data/
+
 # History files
 .Rhistory
 .Rapp.history
