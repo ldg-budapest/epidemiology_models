@@ -113,90 +113,97 @@ calculate_esp_confidence_margin <- function(Std_rate, Raw_rate, Pop_size) {
 
 #' A higher-lavel wrapper to be used in a dplyr chain, adding DSRs and confidence intervals to a dataframe
 #'
-#' @param input_tab A dataframe with grouping columns, like age group and year, crude number, DSR weights, and population size
-#' @param rate_column The column name for the crude numbers in the input (typically "Raw_incidence")
-#' @param rate_suffix The suffix to be used for DSR columns (e.g. if crude number is "Raw_incidence", suffix would be "incidence" by default).
-#' @param grouping_cols The columns that identify strata. At least Sex, Age and Year will be required.
-#' @param extra_grouping_cols A shortcut to just add a layer (like Diagnosis) over the usual grouping layers..
-#' @param keep_draft_cols If the columns storing intermediate steps should be kept for debugging/checking the calculation.
-#' @return A dataframe with the grouping columns and information on DSRs calculated by at this step.
+#' @param input_tab A dataframe with grouping columns, like age group and year, crude numbers and population size.
+#' @param standard_population Indicates if an ESP population should be used; also accepts a dataframe with weights.
+#' @param grouping_cols The columns that identify strata. At least Sex, Age and Period (Year) will be required.
+#' @param extra_grouping_cols A shortcut to just add a layer (like Diagnosis) over the usual grouping layers.
+#' @return A dataframe with the standardized rates.
 #' @examples
-#' add_standardized_rate(input_table, "Raw_incidence", keep_draft_cols=TRUE)
-add_standardized_rate <- function(
-    input_tab, rate_column, rate_suffix=str_remove(rate_column, "Raw_"),
-    grouping_cols = c("Age", "Sex", "Year"), extra_grouping_cols = NULL,
-    keep_draft_cols = FALSE
+#' add_standardized_rate(calculate_standardized_rate, "esp2013")
+calculate_standardized_rate <- function(
+    input_tab, standard_population = NULL, grouping_cols = c("Age", "Sex", "Period"), extra_grouping_cols = NULL
   ) {
   
   if (!is.null(extra_grouping_cols)) grouping_cols <- c(extra_grouping_cols, grouping_cols)
   
-  # To allow the column name for crude numbers to be set flexibily
-  .renamer_in <- function(s) {
-    gsub(paste("^", rate_column, "$", sep=""), "Raw_rate_to_calculate_for", s)
-  }
-  
-  # Some further flexibility with the naming of DSR and CI columns
-  .renamer_out <- function(s) {
-    gsub("rate_to_calculate_for", rate_suffix, s)
-  }
-  
-  # Formatting input to have standard column names, no missing data and collapsed strata
-  tmp_tab <- input_tab %>%
-    rename_with(.renamer_in) %>%
+  # TODO: add some more checks
+  stopifnot(all(grouping_cols %in% colnames(input_tab)))
+
+  if(is.null(standard_population)) {
+
+    out_tab <- input_tab %>%
     mutate(
-      Raw_rate_to_calculate_for     = ifelse(
-        is.na(Raw_rate_to_calculate_for), 0, Raw_rate_to_calculate_for
-      )
+      N_cases     = ifelse(is.na(N_cases), 0, N_cases)
+    ) %>%
+    group_by(across(all_of(grouping_cols))) %>%
+    summarise(
+      N_cases     = sum(N_cases, na.rm=TRUE),
+      Population  = sum(Population, na.rm=TRUE)
+    ) %>%
+    ungroup() %>%
+    mutate(
+      Std_rate    = N_cases / Population * 100000,
+    )
+
+  } else {
+   
+    # Formatting input to have standard column names, no missing data and collapsed strata
+  tmp_tab <- input_tab %>%
+    mutate(
+      N_cases     = ifelse(is.na(N_cases), 0, N_cases)
     ) %>%
     # The whole point of the standardization porcess is to correct size of each age group;
     # The "Total" group makes no sense in this context and has to be avoided
-    filter(Age != "Total") %>%
+    dplyr::filter(Age != "Total") %>%
     group_by(across(all_of(grouping_cols))) %>%
     summarise(
-      Raw_rate_to_calculate_for     = sum(Raw_rate_to_calculate_for, na.rm=TRUE),
-      Population                    = sum(Population, na.rm=TRUE),
-      Std_size                      = unique(Std_size)
+      N_cases     = sum(N_cases, na.rm=TRUE),
+      Population  = sum(Population, na.rm=TRUE)
     ) %>%
     ungroup()
   
+    esp_w_breaks <- tmp_tab %>%
+      distinct(Age) %>%
+      arrange(Age) %>%
+      mutate(
+        Age = gsub("(-|\\s|\\.).*", "", Age)
+      ) %>%
+      .$Age %>%
+      as.numeric()
+    
+    esp_w_tab <- get_esp_pop(gsub("esp", "", standard_population), esp_w_breaks)
+
   # Calculate Age-specific rates for each age group
   out_tab <- tmp_tab %>%
+    right_join(esp_w_tab) %>%
     mutate(
-      Std_rate_to_calculate_for     = Raw_rate_to_calculate_for / Population * 100000,
-      Std_rate_to_calculate_for     = ifelse(
-        Population == 0, NA_real_, Std_rate_to_calculate_for
+      Std_rate    = N_cases / Population * 100000,
+      Std_rate    = ifelse(
+        Population == 0, NA_real_, Std_rate
       ),
-      Spc_rate_to_calculate_for     = Std_rate_to_calculate_for * Std_size / 100000,
-      CI_margin                     = calculate_esp_confidence_margin(
-        Std_rate_to_calculate_for, Raw_rate_to_calculate_for, Population
-      ),
-      CI_rate_to_calculate_for_lo   = Std_rate_to_calculate_for - CI_margin,
-      CI_rate_to_calculate_for_hi   = Std_rate_to_calculate_for + CI_margin
+      Spc_rate    = Std_rate * Std_size / 100000
     )
   
   # Summarize for total population
   out_tab <- out_tab %>%
     group_by(across(all_of(setdiff(grouping_cols, "Age")))) %>%
     summarise(
-      Std_rate_to_calculate_for     = sum(Spc_rate_to_calculate_for, na.rm=TRUE),
-      Raw_rate_to_calculate_for     = sum(Raw_rate_to_calculate_for, na.rm=TRUE),
-      Population                    = sum(Population, na.rm=TRUE),
-      Std_size                      = sum(Std_size, na.rm=TRUE)
+      Std_rate    = sum(Spc_rate, na.rm=TRUE),
+      N_cases     = sum(N_cases, na.rm=TRUE),
+      Population  = sum(Population, na.rm=TRUE),
+      Std_size    = sum(Std_size, na.rm=TRUE)
     ) %>%
     ungroup() %>%
     mutate( 
-      Age                           = "Total",
-      Spc_rate_to_calculate_for     = Raw_rate_to_calculate_for / Population * 100000,
-      CI_margin                     = calculate_esp_confidence_margin(
-        Std_rate_to_calculate_for, Raw_rate_to_calculate_for, Population
+      Age         = "Total",
+      CI_margin   = calculate_esp_confidence_margin(
+        Std_rate, Raw_rate, Population
       ),
-      CI_rate_to_calculate_for_lo   = Std_rate_to_calculate_for - CI_margin,
-      CI_rate_to_calculate_for_hi   = Std_rate_to_calculate_for + CI_margin
+      CI_lo       = Std_rate - CI_margin,
+      CI_hi       = Std_rate + CI_margin
     ) %>%
-    bind_rows(out_tab)
+    select(one_of(grouping_cols), Std_rate, CI_lo, CI_hi)
+  }
   
-  # Remove unnecessary columns if not explicitly requested
-  if (!keep_draft_cols) out_tab <- select(out_tab, -Std_size, -CI_margin)
-  
-  rename_with(out_tab, .renamer_out)
+  out_tab
 }

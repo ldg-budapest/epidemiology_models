@@ -19,12 +19,6 @@ library(tidyr)
 library(dplyr)
 ```
 
-## Sourcing scripts
-
-```{r}
-source("../scripts/european_standard_population.R")
-```
-
 ## Eaxample dataset
 
 ```{r}
@@ -65,11 +59,26 @@ head(age_10_dataset)
 ## Standardized rates
 
 ```{r}
-esp_2013_std_data <- age_10_dataset %>%
-  rename(Raw_rate=N_cases, Year=Period) %>%
-  left_join(get_esp_pop("2013", seq(0, 90, 10))) %>%
-  add_standardized_rate("Raw_rate")
+source("../scripts/european_standard_population.R")
 ```
+
+By default, rate is standardized as the number of cases in 100,000 persons.
+
+```{r}
+age_10_dataset %>%
+  calculate_standardized_rate(extra_grouping_cols="Diagnosis")
+```
+
+The same function can be used to calculate direct standardized rates
+
+```{r}
+age_10_dataset %>%
+  calculate_standardized_rate(
+    extra_grouping_cols="Diagnosis", standard_population="esp2013"
+  )
+```
+
+Please note, however that DSRs are applied to the total population and not to separate age groups.
 
 ## Virtual patient numbers
 
