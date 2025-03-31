@@ -14,7 +14,6 @@ knit: "(function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = 
 ## Library imports
 
 ```{r include=FALSE, warning=FALSE, message=FALSE}
-
 library(tidyr)
 library(dplyr)
 ```
@@ -65,17 +64,21 @@ source("../scripts/european_standard_population.R")
 By default, rate is standardized as the number of cases in 100,000 persons.
 
 ```{r}
-age_10_dataset %>%
+standardized_table <- age_10_dataset %>%
   calculate_standardized_rate(extra_grouping_cols="Diagnosis")
+
+head(standardized_table)
 ```
 
 The same function can be used to calculate direct standardized rates
 
 ```{r}
-age_10_dataset %>%
+standardized_table <- age_10_dataset %>%
   calculate_standardized_rate(
     extra_grouping_cols="Diagnosis", standard_population="esp2013"
   )
+
+head(standardized_table)
 ```
 
 Please note, however that DSRs are applied to the total population and not to separate age groups.

@@ -63,8 +63,8 @@ get_esp_pop <- function(
   # Deal with labels on the extremes
   if (include_age_extremes) {
     out_pop_tab[[age_column]] <- case_when(
-      is.na(out_pop_tab[[age_column]]) & out_pop_tab$SINGLETON_AGE_NUMBERING < breaks[1] ~ paste("00", breaks[1]-1, sep="-"),
-      is.na(out_pop_tab[[age_column]]) ~ paste(breaks[length(breaks)], "X", sep="-"),
+      is.na(out_pop_tab[[age_column]]) & out_pop_tab$SINGLETON_AGE_NUMBERING < breaks[1] ~ paste("0", breaks[1]-1, sep="-"),
+      is.na(out_pop_tab[[age_column]]) ~ paste(breaks[length(breaks)], "x", sep="-"),
       TRUE ~ as.character(out_pop_tab[[age_column]])
     )
   } else {
@@ -95,8 +95,8 @@ get_esp_pop <- function(
 #' @param Pop_size Number at risk; the total population.
 #' @return A vector describing confidence margins.
 #' @examples
-#' calculate_esp_confidence_margin(x, y, z)
-calculate_esp_confidence_margin <- function(Std_rate, Raw_rate, Pop_size) {
+#' .calculate_esp_confidence_margin(x, y, z)
+.calculate_esp_confidence_margin <- function(Std_rate, Raw_rate, Pop_size) {
   
   # Simple approach used previously
   # 1.96*(Std_rate/sqrt(Raw_rate))
@@ -121,17 +121,18 @@ calculate_esp_confidence_margin <- function(Std_rate, Raw_rate, Pop_size) {
 #' @examples
 #' add_standardized_rate(calculate_standardized_rate, "esp2013")
 calculate_standardized_rate <- function(
-    input_tab, standard_population = NULL, grouping_cols = c("Age", "Sex", "Period"), extra_grouping_cols = NULL
+    input_tab, standard_population = NA,
+    grouping_cols = c("Age", "Sex", "Period"),
+    extra_grouping_cols = c(), dg_cols= c()
   ) {
   
   if (!is.null(extra_grouping_cols)) grouping_cols <- c(extra_grouping_cols, grouping_cols)
-  
+  print(grouping_cols)
   # TODO: add some more checks
-  stopifnot(all(grouping_cols %in% colnames(input_tab)))
-
-  if(is.null(standard_population)) {
-
-    out_tab <- input_tab %>%
+  #stopifnot(all(grouping_cols %in% colnames(input_tab)), "Expected columns missing")
+  
+  # The initial step is to calculate simple raw rates, without any weighting
+  rate_tab <- input_tab %>%
     mutate(
       N_cases     = ifelse(is.na(N_cases), 0, N_cases)
     ) %>%
@@ -141,69 +142,103 @@ calculate_standardized_rate <- function(
       Population  = sum(Population, na.rm=TRUE)
     ) %>%
     ungroup() %>%
-    mutate(
-      Std_rate    = N_cases / Population * 100000,
-    )
-
-  } else {
-   
-    # Formatting input to have standard column names, no missing data and collapsed strata
-  tmp_tab <- input_tab %>%
-    mutate(
-      N_cases     = ifelse(is.na(N_cases), 0, N_cases)
-    ) %>%
-    # The whole point of the standardization porcess is to correct size of each age group;
-    # The "Total" group makes no sense in this context and has to be avoided
-    dplyr::filter(Age != "Total") %>%
-    group_by(across(all_of(grouping_cols))) %>%
-    summarise(
-      N_cases     = sum(N_cases, na.rm=TRUE),
-      Population  = sum(Population, na.rm=TRUE)
-    ) %>%
-    ungroup()
-  
-    esp_w_breaks <- tmp_tab %>%
-      distinct(Age) %>%
-      arrange(Age) %>%
-      mutate(
-        Age = gsub("(-|\\s|\\.).*", "", Age)
-      ) %>%
-      .$Age %>%
-      as.numeric()
-    
-    esp_w_tab <- get_esp_pop(gsub("esp", "", standard_population), esp_w_breaks)
-
-  # Calculate Age-specific rates for each age group
-  out_tab <- tmp_tab %>%
-    right_join(esp_w_tab) %>%
     mutate(
       Std_rate    = N_cases / Population * 100000,
       Std_rate    = ifelse(
         Population == 0, NA_real_, Std_rate
-      ),
-      Spc_rate    = Std_rate * Std_size / 100000
+      )
     )
   
-  # Summarize for total population
-  out_tab <- out_tab %>%
-    group_by(across(all_of(setdiff(grouping_cols, "Age")))) %>%
-    summarise(
-      Std_rate    = sum(Spc_rate, na.rm=TRUE),
-      N_cases     = sum(N_cases, na.rm=TRUE),
-      Population  = sum(Population, na.rm=TRUE),
-      Std_size    = sum(Std_size, na.rm=TRUE)
-    ) %>%
-    ungroup() %>%
+  # A major bifurcation point is if direct standardization should be used;
+  # and if yes, what weight (which population standard)
+  if(!is.na(standard_population)) {
+    
+    # The whole point of the standardization process is to correct size of each age group;
+    # The "Total" group makes no sense in this context and has to be avoided
+    rate_tab <- rate_tab %>%
+      dplyr::filter(Age != "Total")
+    
+    # Standardization weights need to be added
+    if(is.data.frame(standard_population)) {
+      # Easiest is if a weight table is provided directly
+      age_weight_tab <- select(standard_population, Age, Std_size)
+    } else {
+      
+      # It is still easy to retrieve ESP weights
+      if(grepl("esp", standard_population)) {
+        
+        # Age group labels are retrieved from input data; expected to have a specific format
+        age_weight_breaks <- rate_tab %>%
+          distinct(Age) %>%
+          arrange(Age) %>%
+          mutate(
+            Age = gsub("(-|\\s|\\.).*", "", Age)
+          ) %>%
+          .$Age %>%
+          as.numeric()
+        
+        # Calling the function that builds the weights table
+        age_weight_tab <- get_esp_pop(
+          gsub("esp", "", standard_population),
+          age_weight_breaks
+        )
+        
+      } else {
+        if(standard_population %in% rate_tab$Period) {
+          
+          age_weight_tab <- rate_tab %>%
+            filter(Period == standard_population) %>%
+            distinct(Age, Std_size=Population)
+          
+          total_population_in_weights <- sum(age_weight_tab$Population)
+          
+          age_weight_tab <- age_weight_tab %>%
+            mutate(
+              Std_size = Std_size / total_population_in_weights * 100000
+            )
+          
+        } else {
+          #TODO maybe replace with hard stop; likely not the right call if it gets here
+          age_weight_tab <- data.frame(
+            Age = unique(rate_tab$Age),
+            Std_size = 1
+          )
+        }
+      }
+    }
+    
+    # Just to be sure, count the total of the age groups; might not add up to 100,000
+    age_weight_tab$Std_sum <- sum(age_weight_tab$Std_size)
+      
+    # Calculate the weighted rates (first, for age groups)
+    rate_tab <- rate_tab %>%
+      right_join(age_weight_tab) %>%
+      mutate(
+        Spc_rate    = Std_rate * Std_size / Std_sum
+      ) %>%
+      # Summarize for total population
+      group_by(across(all_of(setdiff(grouping_cols, "Age")))) %>%
+      summarise(
+        Std_rate    = sum(Spc_rate, na.rm=TRUE),
+        N_cases     = sum(N_cases, na.rm=TRUE),
+        Population  = sum(Population, na.rm=TRUE),
+        Std_size    = sum(Std_size, na.rm=TRUE),
+        Std_sum    = unique(Std_sum, na.rm=TRUE)
+      ) %>%
+      ungroup() %>%
+      mutate( 
+        Age         = "Total"
+      )
+  }
+  
+  rate_tab %>%
     mutate( 
-      Age         = "Total",
-      CI_margin   = calculate_esp_confidence_margin(
-        Std_rate, Raw_rate, Population
+      CI_margin   = .calculate_esp_confidence_margin(
+        Std_rate, N_cases, Population
       ),
       CI_lo       = Std_rate - CI_margin,
       CI_hi       = Std_rate + CI_margin
     ) %>%
-    select(one_of(grouping_cols), Std_rate, CI_lo, CI_hi)
-  }
+    select(one_of(grouping_cols), Std_rate, CI_lo, CI_hi, any_of(dg_cols))
   
-  out_tab
 }
