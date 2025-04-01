@@ -127,7 +127,7 @@ calculate_standardized_rate <- function(
   ) {
   
   if (!is.null(extra_grouping_cols)) grouping_cols <- c(extra_grouping_cols, grouping_cols)
-  print(grouping_cols)
+  
   # TODO: add some more checks
   #stopifnot(all(grouping_cols %in% colnames(input_tab)), "Expected columns missing")
   
@@ -161,7 +161,20 @@ calculate_standardized_rate <- function(
     # Standardization weights need to be added
     if(is.data.frame(standard_population)) {
       # Easiest is if a weight table is provided directly
-      age_weight_tab <- select(standard_population, Age, Std_size)
+      age_weight_tab <- standard_population %>%
+        select(any_of("Age", "Sex", "Std_size"))
+      
+      # Just to be sure, count the total of the age groups; might not add up to 100,000
+      if("Sex" %in% colnames(age_weight_tab)) {
+        age_weight_tab <- age_weight_tab %>%
+          grouby_by(Sex) %>%
+          mutate(
+            Std_sum = sum(Std_size, na.rm=TRUE)
+          ) %>%
+          ungroup()
+      } else {
+        age_weight_tab$Std_sum <- sum(age_weight_tab$Std_size)
+      }
     } else {
       
       # It is still easy to retrieve ESP weights
@@ -170,32 +183,34 @@ calculate_standardized_rate <- function(
         # Age group labels are retrieved from input data; expected to have a specific format
         age_weight_breaks <- rate_tab %>%
           distinct(Age) %>%
-          arrange(Age) %>%
           mutate(
-            Age = gsub("(-|\\s|\\.).*", "", Age)
+            Age = as.numeric(gsub("(-|\\s|\\.).*", "", Age))
           ) %>%
-          .$Age %>%
-          as.numeric()
+          arrange(Age) %>%
+          .$Age
         
         # Calling the function that builds the weights table
         age_weight_tab <- get_esp_pop(
           gsub("esp", "", standard_population),
           age_weight_breaks
-        )
+        ) %>%
+          # Should add up to 100000, just because the getter function works this way
+          mutate(
+            Std_sum = 100000
+          )
         
       } else {
         if(standard_population %in% rate_tab$Period) {
-          
           age_weight_tab <- rate_tab %>%
             filter(Period == standard_population) %>%
-            distinct(Age, Std_size=Population)
-          
-          total_population_in_weights <- sum(age_weight_tab$Population)
-          
-          age_weight_tab <- age_weight_tab %>%
+            distinct(Age, Sex, Std_size=Population) %>%
+            group_by(Sex) %>%
             mutate(
-              Std_size = Std_size / total_population_in_weights * 100000
-            )
+              Std_sum = sum(Std_size),
+              Std_size = Std_size / Std_sum * 100000,
+              Std_sum = sum(Std_size)
+            ) %>%
+            ungroup()
           
         } else {
           #TODO maybe replace with hard stop; likely not the right call if it gets here
@@ -207,9 +222,6 @@ calculate_standardized_rate <- function(
       }
     }
     
-    # Just to be sure, count the total of the age groups; might not add up to 100,000
-    age_weight_tab$Std_sum <- sum(age_weight_tab$Std_size)
-      
     # Calculate the weighted rates (first, for age groups)
     rate_tab <- rate_tab %>%
       right_join(age_weight_tab) %>%

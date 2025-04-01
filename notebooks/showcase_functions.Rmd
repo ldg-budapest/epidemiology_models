@@ -26,14 +26,45 @@ example_dataset <- "../example_data/crc_lung_mortality.csv" %>%
   pivot_longer(
     one_of("Colorectal (C18)", "Lung (C33-34)"),
     names_to = "Diagnosis", values_to = "N_cases"
+  ) %>%
+  mutate(
+    Age = as.character(Age)
   )
+
+# Commonly, numbers for both sexes merged are also present
+example_dataset <- example_dataset %>%
+  group_by(Age, Period, Diagnosis) %>%
+  summarise(
+    N_cases = sum(N_cases, na.rm=TRUE),
+    Population = sum(Population, na.rm=TRUE)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    Sex = "Total"
+  ) %>%
+  bind_rows(example_dataset)
+
+# Adding the total age group to show it does not interfere with models
+example_dataset <- example_dataset %>%
+  group_by(Sex, Period, Diagnosis) %>%
+  summarise(
+    N_cases = sum(N_cases, na.rm=TRUE),
+    Population = sum(Population, na.rm=TRUE)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    Age = "Total"
+  ) %>%
+  bind_rows(example_dataset)
 
 head(example_dataset)
 ```
 
 ```{r}
 age_10_dataset <- example_dataset %>%
+  filter(Age != "Total") %>%
   mutate(
+    Age = as.numeric(Age),
     Age_c = cut(Age, seq(-1, 100, 10)),
     Age_d = gsub(",.*", "", Age_c),
     Age_d = gsub("\\(", "", Age_d),
@@ -44,11 +75,23 @@ age_10_dataset <- example_dataset %>%
   ) %>%
   group_by(Age, Sex, Period, Diagnosis) %>%
   summarise(
-    Population = sum(Population),
-    N_cases = sum(N_cases)
+    Population = sum(Population, na.rm=TRUE),
+    N_cases = sum(N_cases, na.rm=TRUE)
   ) %>%
   ungroup()
-  
+
+# Re-adding the total age group
+age_10_dataset <- age_10_dataset %>%
+  group_by(Sex, Period, Diagnosis) %>%
+  summarise(
+    N_cases = sum(N_cases, na.rm=TRUE),
+    Population = sum(Population, na.rm=TRUE)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    Age = "Total"
+  ) %>%
+  bind_rows(age_10_dataset)
 
 head(age_10_dataset)
 ```
@@ -67,7 +110,14 @@ By default, rate is standardized as the number of cases in 100,000 persons.
 standardized_table <- age_10_dataset %>%
   calculate_standardized_rate(extra_grouping_cols="Diagnosis")
 
-head(standardized_table)
+standardized_table %>%
+  filter(Period == "2021", Sex == "Total") %>%
+  select(Age, name=Diagnosis, value=Std_rate) %>%
+  mutate(
+    value = round(value, 2)
+  ) %>%
+  pivot_wider() %>%
+  tail(8)
 ```
 
 The same function can be used to calculate direct standardized rates
@@ -76,7 +126,55 @@ The same function can be used to calculate direct standardized rates
 standardized_table <- age_10_dataset %>%
   calculate_standardized_rate(
     extra_grouping_cols="Diagnosis", standard_population="esp2013"
-  )
+  ) %>%
+  select(Period, Sex, Diagnosis, value=Std_rate) %>%
+  mutate(
+    value = round(value, 2)
+  ) %>%
+  pivot_wider(names_from=c("Diagnosis", "Sex")) %>%
+  arrange(desc(Period)) %>%
+  head()
+
+head(standardized_table)
+```
+
+The 10-year granularity should not differ much from single-year granularity:
+
+```{r}
+standardized_table <- example_dataset %>%
+  # Age needs to be formatted a bit
+  mutate(
+    Age = paste(Age, "-", Age, sep=""),
+    Age = ifelse(Age == "90-90", "90-x", Age)
+  ) %>%
+  calculate_standardized_rate(
+    extra_grouping_cols="Diagnosis", standard_population="esp2013"
+  ) %>%
+  select(Period, Sex, Diagnosis, value=Std_rate) %>%
+  mutate(
+    value = round(value, 2)
+  ) %>%
+  pivot_wider(names_from=c("Diagnosis", "Sex")) %>%
+  arrange(desc(Period)) %>%
+  head()
+
+head(standardized_table)
+```
+
+A convenience option is to standardize to one of the years also present in the data by simply supplying that year as a parameter.
+
+```{r}
+standardized_table <- age_10_dataset %>%
+  calculate_standardized_rate(
+    extra_grouping_cols="Diagnosis", standard_population="2011"
+  ) %>%
+  select(Period, Sex, Diagnosis, value=Std_rate) %>%
+  mutate(
+    value = round(value, 2)
+  ) %>%
+  pivot_wider(names_from=c("Diagnosis", "Sex")) %>%
+  arrange(desc(Period)) %>%
+  head()
 
 head(standardized_table)
 ```
