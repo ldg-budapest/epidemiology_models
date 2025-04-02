@@ -101,7 +101,7 @@ head(age_10_dataset)
 ## Standardized rates
 
 ```{r}
-source("../scripts/european_standard_population.R")
+source("../scripts/standardized_rates.R")
 ```
 
 By default, rate is standardized as the number of cases in 100,000 persons.
