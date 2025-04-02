@@ -174,9 +174,69 @@ standardized_table %>%
   head()
 ```
 
-Please note, however that DSRs are applied to the total population and not to separate age groups.
+Please note, however that DSRs are applied to the total population and not to separate age groups. Rates could be projected onto the population of a single year, by explicitly providing weight tables for as bands as below:
 
-## Virtual patient numbers
+```{r}
+standardized_table <- example_dataset %>%
+  calculate_standardized_rate(
+    extra_grouping_cols="Diagnosis",
+    standard_population = .create_weight_table_from_population(
+      filter(example_dataset, Age %in% seq(50, 59)), "2011"
+    )
+  )%>%
+  mutate(
+    Age = "50-59"
+  )
+
+standardized_table <- example_dataset %>%
+  calculate_standardized_rate(
+    extra_grouping_cols="Diagnosis",
+    standard_population = .create_weight_table_from_population(
+      filter(example_dataset, Age %in% seq(60, 69)), "2011"
+    )
+  )%>%
+  mutate(
+    Age = "60-69"
+  ) %>%
+  bind_rows(standardized_table)
+
+standardized_table <- example_dataset %>%
+  calculate_standardized_rate(
+    extra_grouping_cols="Diagnosis",
+    standard_population = .create_weight_table_from_population(
+      filter(example_dataset, Age %in% seq(70, 79)), "2011"
+    )
+  )%>%
+  mutate(
+    Age = "70-79"
+  ) %>%
+  bind_rows(standardized_table)
+
+standardized_table %>%
+  filter(Period == "2021", Sex != "Total") %>%
+  select(Age, Sex, Diagnosis, value=Std_rate) %>%
+  mutate(
+    value = round(value, 2)
+  ) %>%
+  pivot_wider(names_from=c("Sex", "Diagnosis")) %>%
+  tail(8)
+```
+
+As a comparison, the raw rates in the above age groups in 2021 was:
+
+```{r}
+standardized_table <- age_10_dataset %>%
+  calculate_standardized_rate(extra_grouping_cols="Diagnosis")
+
+standardized_table %>%
+  filter(Period == "2021", Sex != "Total") %>%
+  select(Age, Sex, Diagnosis, value=Std_rate) %>%
+  mutate(
+    value = round(value, 2)
+  ) %>%
+  pivot_wider(names_from=c("Sex", "Diagnosis")) %>%
+  tail(8)
+```
 
 ## Average yearly change
 

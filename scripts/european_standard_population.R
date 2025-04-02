@@ -97,6 +97,29 @@ get_esp_pop <- function(
 
 #' Calculate confidence interval (more specifically, just the margin at this step) for a given DSR
 #'
+#' @param input_tab A dataframe containing at least a population size and a period column.
+#' @param period_of_interest The period/year we want to use as standard of population distribution.
+#' @return A dataframe with age group and weight.
+#' @examples
+#' .create_weight_table_from_population(x, 2013)
+.create_weight_table_from_population <- function(input_tab, period_of_interest) {
+  
+  age_weight_tab <- input_tab %>%
+    filter(Period == period_of_interest) %>%
+    distinct(Age, Sex, Std_size=Population) %>%
+    group_by(Sex) %>%
+    mutate(
+      Std_sum = sum(Std_size),
+      Std_size = Std_size / Std_sum * 100000,
+      Std_sum = sum(Std_size)
+    ) %>%
+    ungroup()
+
+}
+
+
+#' Calculate confidence interval (more specifically, just the margin at this step) for a given DSR
+#'
 #' @param Std_rate The calculated DSR
 #' @param Raw_rate Crude number of persons affected.
 #' @param Pop_size Number at risk; the total population.
@@ -114,11 +137,11 @@ get_esp_pop <- function(
   
   # Current implementation
   qnorm(0.975, mean=0, sd=1) * sqrt(Std_rate * (100000 - Std_rate) / Pop_size)
-
+  
 }
 
 
-#' A higher-lavel wrapper to be used in a dplyr chain, adding DSRs and confidence intervals to a dataframe
+#' A higher-level wrapper to be used in a dplyr chain, adding DSRs and confidence intervals to a dataframe
 #'
 #' @param input_tab A dataframe with grouping columns, like age group and year, crude numbers and population size.
 #' @param standard_population Indicates if an ESP population should be used; also accepts a dataframe with weights.
@@ -158,7 +181,7 @@ calculate_standardized_rate <- function(
   
   # A major bifurcation point is if direct standardization should be used;
   # and if yes, what weight (which population standard)
-  if(!is.na(standard_population)) {
+  if(!all(is.na(standard_population))) {
     
     # The whole point of the standardization process is to correct size of each age group;
     # The "Total" group makes no sense in this context and has to be avoided
@@ -167,14 +190,14 @@ calculate_standardized_rate <- function(
     
     # Standardization weights need to be added
     if(is.data.frame(standard_population)) {
+      
       # Easiest is if a weight table is provided directly
-      age_weight_tab <- standard_population %>%
-        select(any_of("Age", "Sex", "Std_size"))
+      age_weight_tab <- select(standard_population, everything())
       
       # Just to be sure, count the total of the age groups; might not add up to 100,000
       if("Sex" %in% colnames(age_weight_tab)) {
         age_weight_tab <- age_weight_tab %>%
-          grouby_by(Sex) %>%
+          group_by(Sex) %>%
           mutate(
             Std_sum = sum(Std_size, na.rm=TRUE)
           ) %>%
@@ -208,17 +231,7 @@ calculate_standardized_rate <- function(
         
       } else {
         if(standard_population %in% rate_tab$Period) {
-          age_weight_tab <- rate_tab %>%
-            filter(Period == standard_population) %>%
-            distinct(Age, Sex, Std_size=Population) %>%
-            group_by(Sex) %>%
-            mutate(
-              Std_sum = sum(Std_size),
-              Std_size = Std_size / Std_sum * 100000,
-              Std_sum = sum(Std_size)
-            ) %>%
-            ungroup()
-          
+          age_weight_tab <- .create_weight_table_from_population(rate_tab, standard_population)
         } else {
           #TODO maybe replace with hard stop; likely not the right call if it gets here
           age_weight_tab <- data.frame(
