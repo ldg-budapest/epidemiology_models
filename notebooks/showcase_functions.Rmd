@@ -126,7 +126,9 @@ The same function can be used to calculate direct standardized rates
 standardized_table <- age_10_dataset %>%
   calculate_standardized_rate(
     extra_grouping_cols="Diagnosis", standard_population="esp2013"
-  ) %>%
+  )
+
+standardized_table %>%
   select(Period, Sex, Diagnosis, value=Std_rate) %>%
   mutate(
     value = round(value, 2)
@@ -134,22 +136,17 @@ standardized_table <- age_10_dataset %>%
   pivot_wider(names_from=c("Diagnosis", "Sex")) %>%
   arrange(desc(Period)) %>%
   head()
-
-head(standardized_table)
 ```
 
 The 10-year granularity should not differ much from single-year granularity:
 
 ```{r}
 standardized_table <- example_dataset %>%
-  # Age needs to be formatted a bit
-  mutate(
-    Age = paste(Age, "-", Age, sep=""),
-    Age = ifelse(Age == "90-90", "90-x", Age)
-  ) %>%
   calculate_standardized_rate(
     extra_grouping_cols="Diagnosis", standard_population="esp2013"
-  ) %>%
+  )
+
+standardized_table %>%
   select(Period, Sex, Diagnosis, value=Std_rate) %>%
   mutate(
     value = round(value, 2)
@@ -157,8 +154,6 @@ standardized_table <- example_dataset %>%
   pivot_wider(names_from=c("Diagnosis", "Sex")) %>%
   arrange(desc(Period)) %>%
   head()
-
-head(standardized_table)
 ```
 
 A convenience option is to standardize to one of the years also present in the data by simply supplying that year as a parameter.
@@ -167,7 +162,9 @@ A convenience option is to standardize to one of the years also present in the d
 standardized_table <- age_10_dataset %>%
   calculate_standardized_rate(
     extra_grouping_cols="Diagnosis", standard_population="2011"
-  ) %>%
+  )
+
+standardized_table %>%
   select(Period, Sex, Diagnosis, value=Std_rate) %>%
   mutate(
     value = round(value, 2)
@@ -175,8 +172,6 @@ standardized_table <- age_10_dataset %>%
   pivot_wider(names_from=c("Diagnosis", "Sex")) %>%
   arrange(desc(Period)) %>%
   head()
-
-head(standardized_table)
 ```
 
 Please note, however that DSRs are applied to the total population and not to separate age groups.

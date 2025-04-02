@@ -52,7 +52,13 @@ get_esp_pop <- function(
   
   # Generate labels if not supplied
   if (is.null(age_labels)) {
-    age_labels <- paste(breaks[-length(breaks)], breaks[-1]-1, sep="-")
+    age_break_start <- breaks[-length(breaks)]
+    age_break_end <- breaks[-1]-1
+    if(all(age_break_start == age_break_end)) {
+      age_labels <- age_break_start
+    } else {
+      age_labels <- paste(age_break_start, age_break_end, sep="-")
+    }
   }
   
   # Create a temporary table with the finest granularity possible
@@ -64,7 +70,8 @@ get_esp_pop <- function(
   if (include_age_extremes) {
     out_pop_tab[[age_column]] <- case_when(
       is.na(out_pop_tab[[age_column]]) & out_pop_tab$SINGLETON_AGE_NUMBERING < breaks[1] ~ paste("0", breaks[1]-1, sep="-"),
-      is.na(out_pop_tab[[age_column]]) ~ paste(breaks[length(breaks)], "x", sep="-"),
+      is.na(out_pop_tab[[age_column]]) & is.na(as.numeric(breaks[length(breaks)])) ~ paste(breaks[length(breaks)], "x", sep="-"),
+      is.na(out_pop_tab[[age_column]]) ~ as.character(breaks[length(breaks)]),
       TRUE ~ as.character(out_pop_tab[[age_column]])
     )
   } else {
