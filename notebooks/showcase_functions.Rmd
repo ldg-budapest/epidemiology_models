@@ -2,11 +2,13 @@
 title: "`r params$report_title`"
 author: "`r params$report_author`"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  md_document:
+    variant: markdown_github
 params:
   report_title: "Showcase functionality of scripts in repo"
   report_author: "Tamas Szabo"
-knit: "(function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(dirname(dirname(inputFile)),'reports',paste(substr(basename(inputFile),1,nchar(basename(inputFile))-4),'_',Sys.Date(),'.html',sep=''))) })"
+knit: "(function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(dirname(dirname(inputFile)),'reports',paste(substr(basename(inputFile),1,nchar(basename(inputFile))-2),'_',Sys.Date(),'.md',sep=''))) })"
 ---
 
 # Setup
