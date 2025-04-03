@@ -18,7 +18,7 @@ library(tidyr)
 library(dplyr)
 ```
 
-## Eaxample dataset
+## Example dataset
 
 ```{r message=FALSE, warning=FALSE}
 example_dataset <- "../example_data/crc_lung_mortality.csv" %>%
@@ -221,6 +221,92 @@ standardized_table %>%
 
 ## Average yearly change
 
+```{r message=FALSE, warning=FALSE}
+source("../scripts/annual_rate_change.R")
+```
+
+A simple case if we want to see change for the total population and put age and sex as co-variates.
+
+```{r message=FALSE, warning=FALSE}
+standardized_table <- age_10_dataset %>%
+  filter(Period %in% seq(2011, 2019)) %>%
+  filter(Age != "Total", Sex != "Total") %>%
+  calculate_poisson_rate(
+    c("Diagnosis")
+  )
+
+head(standardized_table)
+```
+
+This could be done separately for age groups in the merged dataset.
+
+```{r message=FALSE, warning=FALSE}
+standardized_table <- age_10_dataset %>%
+  filter(Period %in% seq(2011, 2019)) %>%
+  filter(Sex == "Total") %>%
+  calculate_poisson_rate(
+    c("Age", "Diagnosis")
+  )
+
+standardized_table %>%
+  select(Age, name=Diagnosis, value=estimate) %>%
+  mutate(
+    value = round(value, 3)
+  ) %>%
+  pivot_wider() %>%
+  tail(8)
+```
+
+Better still, if this is calculated from the 1-year granularity of age groups:
+```{r message=FALSE, warning=FALSE}
+standardized_table <- example_dataset %>%
+  filter(Period %in% seq(2011, 2019)) %>%
+  filter(Age %in% seq(60, 69)) %>%
+  calculate_poisson_rate(
+    c("Diagnosis")
+  )
+
+standardized_table %>%
+  mutate(
+    Age = "60-69"
+  ) %>%
+  select(Age, name=Diagnosis, value=estimate) %>%
+  mutate(
+    value = round(value, 3)
+  ) %>%
+  pivot_wider() %>%
+  tail(8)
+```
+
 ## Expected case numbers
+
+Expected case numbers could originate from virtual numbers back-projected from rates.
+
+```{r message=FALSE, warning=FALSE}
+standardized_table <- purrr::map_dfr(
+  list(c(50, 59), c(60, 69), c(70, 79)),
+  function(x) {
+    example_dataset %>%
+    calculate_standardized_rate(
+      extra_grouping_cols="Diagnosis",
+      standard_population = .create_weight_table_from_population(
+        filter(example_dataset, Age %in% seq(x[1], x[2])), "2011"
+      )
+    )%>%
+    mutate(
+      Age = paste(x[1], x[2], sep="-")
+    )
+  }
+) %>%
+  inner_join(age_10_dataset) %>%
+  mutate(
+    Projected_cases = round(Population / 100000 * Std_rate, 1)
+  )
+
+standardized_table %>%
+  filter(Period == "2021", Sex != "Total") %>%
+  head(8) %>%
+  select(Sex, Age, Diagnosis, N_cases, Projected_cases)
+```
 
 # End

@@ -51,7 +51,7 @@ library(sandwich)
 #' Fit a Poisson-model
 #'
 #' @param in_tab A poisson model fit using `glm`.
-#' @param grouping_vars  The columns that identify strata. At least Sex, Age and Year will be required.
+#' @param grouping_vars  The columns that identify strata. At least Sex, Age and Period will be required.
 #' @param rate_var Column name for crude numbers.
 #' @param mid_var Column name for the estimate.
 #' @param ... Options passed on `glm` (the model fitting process).
@@ -59,34 +59,46 @@ library(sandwich)
 #' @examples
 #' add_mid_CI_from_model(calculated_model, stub_df)
 .create_poisson_df <- function(
-    in_tab, grouping_vars, rate_var="Raw_rate", mid_var="estimate",
+    in_tab, grouping_vars, mid_var="estimate",
     ...
 ) {
   
   # Tidy input to match expected names and data format
   model_data_tab <- in_tab %>%
-    rename(
-      raw_case_numbers_to_use=!!sym(rate_var)
-    ) %>%
     mutate(
-      raw_case_numbers_to_use = round(raw_case_numbers_to_use, 0),
-      Year                    = as.numeric(factor(Year)),
-      Age                     = factor(Age),
-      Sex                     = factor(Sex),
-      logpop                  = log(Population)
+      N_cases    = round(N_cases, 0),
+      Period     = as.numeric(factor(Period)),
+      Age        = factor(Age),
+      Sex        = factor(Sex),
+      logpop     = log(Population)
     )
   
   # Fit a Poisson model, taking Sex into account only if input contains multiple
   if(n_distinct(model_data_tab$Sex) > 1) {
-    model <- glm(
-      raw_case_numbers_to_use ~ offset(logpop) + Year + Age + Sex,
-      family = poisson(link = "log"), data = model_data_tab, ...
-    ) 
+    # Same for age
+    if(n_distinct(model_data_tab$Age) > 1) {
+      model <- glm(
+        N_cases ~ offset(logpop) + Period + Age + Sex,
+        family = poisson(link = "log"), data = model_data_tab, ...
+      )
+    } else {
+      model <- glm(
+        N_cases ~ offset(logpop) + Period + Sex,
+        family = poisson(link = "log"), data = model_data_tab, ...
+      )
+    }
   } else {
-    model <- glm(
-      raw_case_numbers_to_use ~ offset(logpop) + Year + Age,
-      family = poisson(link = "log"), data = model_data_tab, ...
-    ) 
+    if(n_distinct(model_data_tab$Age) > 1) {
+      model <- glm(
+        N_cases ~ offset(logpop) + Period + Age,
+        family = poisson(link = "log"), data = model_data_tab, ...
+      )
+    } else {
+      model <- glm(
+        N_cases ~ offset(logpop) + Period,
+        family = poisson(link = "log"), data = model_data_tab, ...
+      )
+    }
   }
   
   # Extract information from model
@@ -128,6 +140,6 @@ library(sandwich)
 
 
 #' High-level convenience function to fit a Poisson model on each data layer, skipping errors
-calc_poisson_rate <- function(in_tab, grouping_vars, ...) {
+calculate_poisson_rate <- function(in_tab, grouping_vars, ...) {
   .calc_layered_stat(in_tab, .create_poisson_df, grouping_vars, ...)
 }
