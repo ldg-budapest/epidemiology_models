@@ -14,7 +14,7 @@ calculate_poisson_expectation <- function(
 ) {
   model_input <- in_tab %>%
     mutate(
-      Raw_rate = round(Raw_rate, 0),
+      N_cases  = round(N_cases, 0),
       Period   = factor(Period),
       Age      = as.numeric(factor(Age)),
       logpop   = log(Population)
@@ -29,13 +29,14 @@ calculate_poisson_expectation <- function(
   if (collapse_ages) {
     model <- model %>%
       glm(
-        Raw_rate ~ Period + offset(Age) + offset(logpop),
+        # N_cases ~ Period + offset(Age) + offset(logpop),
+        N_cases ~ Period + Age + offset(logpop),
         family = poisson(link = "log"), data = ., ...
       )
   } else {
     model <- model %>%
       glm(
-        Raw_rate ~ Period + offset(logpop),
+        N_cases ~ Period + offset(logpop),
         family = poisson(link = "log"), data = ., ...
       )
   }
@@ -49,18 +50,25 @@ calculate_poisson_expectation <- function(
   
   in_tab$Predicted_numbers <- exp(predicted_vector)
   
-  in_tab
+  in_tab %>%
+    group_by(across(all_of(c(grouping_vars, "Period")))) %>%
+    summarise(
+      Population        = sum(Population, na.rm=TRUE),
+      N_cases           = sum(N_cases, na.rm=TRUE),
+      Predicted_numbers = sum(Predicted_numbers, na.rm=TRUE)
+    ) %>%
+    ungroup()
   
 }
 
-.calc_errorprone_rr <- function(Raw_rate, Population, Predicted_numbers, Population_base, ...){
+.calc_errorprone_rr <- function(N_cases, Population, Predicted_numbers, Population_base, ...){
   tryCatch(
     expr = {
       out_df <- data.frame(...)
       in_data <- matrix(
         c(
-          Population-Raw_rate, Population_base-Predicted_numbers,
-          Raw_rate, Predicted_numbers
+          Population-N_cases, Population_base-Predicted_numbers,
+          N_cases, Predicted_numbers
         ),
         nrow=2
       )

@@ -260,6 +260,7 @@ standardized_table %>%
 ```
 
 Better still, if this is calculated from the 1-year granularity of age groups:
+
 ```{r message=FALSE, warning=FALSE}
 standardized_table <- example_dataset %>%
   filter(Period %in% seq(2011, 2019)) %>%
@@ -309,6 +310,51 @@ standardized_table %>%
   filter(Period == "2021", Sex != "Total") %>%
   head(8) %>%
   select(Sex, Age, Diagnosis, N_cases, Projected_cases)
+```
+
+Another possible approach is to use the Poisson-model created previously and predict case numbers based on the fit model.
+
+```{r message=FALSE, warning=FALSE}
+source("../scripts/expected_case_numbers.R")
+
+standardized_table <- example_dataset %>%
+  filter(Age %in% seq(40, 79), Sex != "Total") %>%
+  mutate(
+    Age_bin = case_when(
+      Age %in% seq(40, 49) ~ "40-49",
+      Age %in% seq(50, 59) ~ "50-59",
+      Age %in% seq(60, 69) ~ "60-69",
+      Age %in% seq(70, 79) ~ "70-79",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  group_split(Diagnosis, Sex, Age_bin) %>%
+  map_dfr(
+    calculate_poisson_expectation,
+    grouping_vars = c("Diagnosis", "Sex", "Age_bin")
+  )
+
+standardized_table %>%
+  filter(Period == "2021", Sex != "Total") %>%
+  select(Age_bin, Sex, Diagnosis, value=Predicted_numbers) %>%
+  mutate(
+    value = round(value, 2)
+  ) %>%
+  pivot_wider(names_from=c("Sex", "Diagnosis")) %>%
+  tail(8)
+```
+
+As a reference, observed case numbers look as below.
+
+```{r}
+standardized_table %>%
+  filter(Period == "2021", Sex != "Total") %>%
+  select(Age_bin, Sex, Diagnosis, value=N_cases) %>%
+  mutate(
+    value = round(value, 2)
+  ) %>%
+  pivot_wider(names_from=c("Sex", "Diagnosis")) %>%
+  tail(8)
 ```
 
 # End

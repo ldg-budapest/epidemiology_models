@@ -430,4 +430,70 @@ standardized_table %>%
     ## 7 Female 60-69 Lung (C33-34)       1266           1241.
     ## 8 Male   60-69 Lung (C33-34)       1821           1785.
 
+Another possible approach is to use the Poisson-model created previously
+and predict case numbers based on the fit model.
+
+``` r
+source("../scripts/expected_case_numbers.R")
+
+standardized_table <- example_dataset %>%
+  filter(Age %in% seq(40, 79), Sex != "Total") %>%
+  mutate(
+    Age_bin = case_when(
+      Age %in% seq(40, 49) ~ "40-49",
+      Age %in% seq(50, 59) ~ "50-59",
+      Age %in% seq(60, 69) ~ "60-69",
+      Age %in% seq(70, 79) ~ "70-79",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  group_split(Diagnosis, Sex, Age_bin) %>%
+  map_dfr(
+    calculate_poisson_expectation,
+    grouping_vars = c("Diagnosis", "Sex", "Age_bin")
+  )
+
+standardized_table %>%
+  filter(Period == "2021", Sex != "Total") %>%
+  select(Age_bin, Sex, Diagnosis, value=Predicted_numbers) %>%
+  mutate(
+    value = round(value, 2)
+  ) %>%
+  pivot_wider(names_from=c("Sex", "Diagnosis")) %>%
+  tail(8)
+```
+
+    ## # A tibble: 4 × 5
+    ##   Age_bin Female_Colorectal (C18…¹ Male_Colorectal (C18…² `Female_Lung (C33-34)`
+    ##   <chr>                      <dbl>                  <dbl>                  <dbl>
+    ## 1 40-49                       37.3                   39.2                   60.9
+    ## 2 50-59                       81.8                  161.                   464. 
+    ## 3 60-69                      292.                   510.                  1372. 
+    ## 4 70-79                      472.                   615.                  1179. 
+    ## # ℹ abbreviated names: ¹​`Female_Colorectal (C18)`, ²​`Male_Colorectal (C18)`
+    ## # ℹ 1 more variable: `Male_Lung (C33-34)` <dbl>
+
+As a reference, observed case numbers look as below.
+
+``` r
+standardized_table %>%
+  filter(Period == "2021", Sex != "Total") %>%
+  select(Age_bin, Sex, Diagnosis, value=N_cases) %>%
+  mutate(
+    value = round(value, 2)
+  ) %>%
+  pivot_wider(names_from=c("Sex", "Diagnosis")) %>%
+  tail(8)
+```
+
+    ## # A tibble: 4 × 5
+    ##   Age_bin Female_Colorectal (C18…¹ Male_Colorectal (C18…² `Female_Lung (C33-34)`
+    ##   <chr>                      <dbl>                  <dbl>                  <dbl>
+    ## 1 40-49                         51                     52                     49
+    ## 2 50-59                        113                    149                    359
+    ## 3 60-69                        332                    542                   1266
+    ## 4 70-79                        462                    670                   1089
+    ## # ℹ abbreviated names: ¹​`Female_Colorectal (C18)`, ²​`Male_Colorectal (C18)`
+    ## # ℹ 1 more variable: `Male_Lung (C33-34)` <dbl>
+
 # End
