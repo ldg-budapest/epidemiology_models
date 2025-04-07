@@ -55,14 +55,14 @@ calculate_poisson_expectation <- function(
     select(Period, Age, logpop) %>%
     predict(model, newdata=.)
   
-  in_tab$Predicted_numbers <- exp(predicted_vector)
+  in_tab$Expected_numbers <- exp(predicted_vector)
   
   in_tab %>%
     group_by(across(all_of(c(grouping_vars, "Period")))) %>%
     summarise(
       Population        = sum(Population, na.rm=TRUE),
       N_cases           = sum(N_cases, na.rm=TRUE),
-      Predicted_numbers = sum(Predicted_numbers, na.rm=TRUE)
+      Expected_numbers = sum(Expected_numbers, na.rm=TRUE)
     ) %>%
     ungroup()
   

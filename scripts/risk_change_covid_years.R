@@ -14,20 +14,20 @@ library(epitools)
 #'
 #' @param N_cases Number of observed cases.
 #' @param Population Population on which the observations are made.
-#' @param Predicted_numbers Number of expected cases.
+#' @param Expected_numbers Number of expected cases.
 #' @param Population_base Base population used to calculate expectetions. Needs to be declared, even if same as Population.
 #' @return A dataframe with one single row, containing input data and risk difference.
 #' @examples
 #' .errorprone_rr_for_stratum(10, 100, 25, 200)
-.errorprone_rr_for_stratum <- function(N_cases, Population, Predicted_numbers, Population_base, ...){
+.errorprone_rr_for_stratum <- function(N_cases, Population, Expected_numbers, Population_base, ...){
   
   tryCatch(
     expr = {
       out_df <- data.frame(...)
       in_data <- matrix(
         c(
-          Population-N_cases, Population_base-Predicted_numbers,
-          N_cases, Predicted_numbers
+          Population-N_cases, Population_base-Expected_numbers,
+          N_cases, Expected_numbers
         ),
         nrow=2
       )
@@ -69,7 +69,7 @@ calculate_risk_difference <- function(in_tab){
     mutate(
       N_cases           = round(N_cases, 0),
       Population        = round(Population, 0),
-      Predicted_numbers = round(Predicted_numbers, 0),
+      Expected_numbers = round(Expected_numbers, 0),
       Population_base   = round(Population_base, 0)
     ) %>%
     purrr::pmap_dfr(.errorprone_rr_for_stratum)

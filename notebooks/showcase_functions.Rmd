@@ -309,7 +309,7 @@ standardized_table <- example_dataset %>%
 
 standardized_table %>%
   filter(Period == "2021", Sex != "Total") %>%
-  select(Age_bin, Sex, Diagnosis, value=Predicted_numbers) %>%
+  select(Age_bin, Sex, Diagnosis, value=Expected_numbers) %>%
   mutate(
     value = round(value, 2)
   ) %>%
