@@ -7,17 +7,20 @@
 library(tidyr)
 library(dplyr)
 library(purrr)
+library(epitools)
 
 
-#' Calculate the change in disease (or dectection) risk (chance), 
-#' based on a dataframe containing expected numbers, observed numbers and
-#' the population(s) these numbers should be projected to
+#' A helper function to calculate RR layer-wise; it is intended to be used within a pmap wrapper.
 #'
-#' @param in_tab The input dataframe containg case numbers and base population size.
-#' @return A dataframe
+#' @param N_cases Number of observed cases.
+#' @param Population Population on which the observations are made.
+#' @param Predicted_numbers Number of expected cases.
+#' @param Population_base Base population used to calculate expectetions. Needs to be declared, even if same as Population.
+#' @return A dataframe with one single row, containing input data and risk difference.
 #' @examples
-#' calculate_risk_difference()
-calculate_risk_difference <- function(N_cases, Population, Predicted_numbers, Population_base, ...){
+#' .errorprone_rr_for_stratum(10, 100, 25, 200)
+.errorprone_rr_for_stratum <- function(N_cases, Population, Predicted_numbers, Population_base, ...){
+  
   tryCatch(
     expr = {
       out_df <- data.frame(...)
@@ -30,19 +33,44 @@ calculate_risk_difference <- function(N_cases, Population, Predicted_numbers, Po
       )
       
       rr_res <- in_data %>%
-        riskratio() %>%
+        epitools::riskratio() %>%
         .$measure %>%
         .[2,]
       
       out_df %>%
         mutate(
-          RR=rr_res["estimate"],
-          lower=rr_res["lower"],
-          upper=rr_res["upper"]
+          RR    = 1 - rr_res["estimate"],
+          lower = 1 - rr_res["upper"],
+          upper = 1 - rr_res["lower"]
         )
     },
     error = function(e){
       data.frame(...)
     }
   )
+}
+
+
+#' Calculate the change in disease (or dectection) risk (chance), 
+#' based on a dataframe containing expected numbers, observed numbers and
+#' the population(s) these numbers should be projected to.
+#'
+#' @param in_tab The input dataframe containg case numbers and base population size.
+#' @return A dataframe with risk difference and 95%CI.
+#' @examples
+#' calculate_risk_difference(expectations_table)
+calculate_risk_difference <- function(in_tab){
+  
+  if(! "Population_base" %in% colnames(in_tab)) {
+    in_tab$Population_base <- in_tab$Population
+  }
+
+  in_tab %>%
+    mutate(
+      N_cases           = round(N_cases, 0),
+      Population        = round(Population, 0),
+      Predicted_numbers = round(Predicted_numbers, 0),
+      Population_base   = round(Population_base, 0)
+    ) %>%
+    purrr::pmap_dfr(.errorprone_rr_for_stratum)
 }

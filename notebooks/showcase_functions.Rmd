@@ -283,40 +283,13 @@ standardized_table %>%
 
 ## Expected case numbers
 
-Expected case numbers could originate from virtual numbers back-projected from rates.
-
-```{r message=FALSE, warning=FALSE}
-standardized_table <- purrr::map_dfr(
-  list(c(50, 59), c(60, 69), c(70, 79)),
-  function(x) {
-    example_dataset %>%
-    calculate_standardized_rate(
-      extra_grouping_cols="Diagnosis",
-      standard_population = .create_weight_table_from_population(
-        filter(example_dataset, Age %in% seq(x[1], x[2])), "2011"
-      )
-    )%>%
-    mutate(
-      Age = paste(x[1], x[2], sep="-")
-    )
-  }
-) %>%
-  inner_join(age_10_dataset) %>%
-  mutate(
-    Projected_cases = round(Population / 100000 * Std_rate, 1)
-  )
-
-standardized_table %>%
-  filter(Period == "2021", Sex != "Total") %>%
-  head(8) %>%
-  select(Sex, Age, Diagnosis, N_cases, Projected_cases)
-```
-
-Another possible approach is to use the Poisson-model created previously and predict case numbers based on the fit model.
-
 ```{r message=FALSE, warning=FALSE}
 source("../scripts/expected_case_numbers.R")
+```
 
+One possible approach is to use the Poisson-model created previously and predict case numbers based on the fit model.
+
+```{r message=FALSE, warning=FALSE}
 standardized_table <- example_dataset %>%
   filter(Age %in% seq(40, 79), Sex != "Total") %>%
   mutate(
@@ -346,7 +319,7 @@ standardized_table %>%
 
 As a reference, observed case numbers look as below.
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 standardized_table %>%
   filter(Period == "2021", Sex != "Total") %>%
   select(Age_bin, Sex, Diagnosis, value=N_cases) %>%
@@ -355,6 +328,68 @@ standardized_table %>%
   ) %>%
   pivot_wider(names_from=c("Sex", "Diagnosis")) %>%
   tail(8)
+```
+
+As an alternative reference, expected case numbers calculated from virtual numbers back-projected from rates.
+
+```{r message=FALSE, warning=FALSE}
+standardized_table <- purrr::map_dfr(
+  list(c(50, 59), c(60, 69), c(70, 79)),
+  function(x) {
+    example_dataset %>%
+    calculate_standardized_rate(
+      extra_grouping_cols="Diagnosis",
+      standard_population = .create_weight_table_from_population(
+        filter(example_dataset, Age %in% seq(x[1], x[2])), "2011"
+      )
+    )%>%
+    mutate(
+      Age = paste(x[1], x[2], sep="-")
+    )
+  }
+) %>%
+  inner_join(age_10_dataset) %>%
+  mutate(
+    Projected_cases = round(Population / 100000 * Std_rate, 1)
+  )
+
+standardized_table %>%
+  filter(Period == "2021", Sex != "Total") %>%
+  head(8) %>%
+  select(Sex, Age, Diagnosis, N_cases, Projected_cases)
+```
+
+## Impact of COVID years
+
+```{r message=FALSE, warning=FALSE}
+source("../scripts/risk_change_covid_years.R")
+```
+
+Impact can be measured as the risk difference during pandemic years compared to expectations based on some projection (average of base years or calculated form trends).  
+As an example, the risk difference for the 60-69 age group is shown below.
+
+
+```{r message=FALSE, warning=FALSE}
+expectation_table <- example_dataset %>%
+  filter(Age %in% seq(60, 69), Sex == "Total") %>%
+  mutate(
+    Age_bin = case_when(
+      Age %in% seq(60, 69) ~ "60-69",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  group_split(Diagnosis, Sex, Age_bin) %>%
+  map_dfr(
+    calculate_poisson_expectation,
+    grouping_vars = c("Diagnosis", "Age_bin")
+)
+
+riskdiff_table <- expectation_table %>%
+  filter(Period %in% seq(2020, 2022)) %>%
+  select(-Age_bin) %>%
+  calculate_risk_difference()
+
+riskdiff_table
 ```
 
 # End
