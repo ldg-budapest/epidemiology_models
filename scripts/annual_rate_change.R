@@ -131,7 +131,7 @@ library(sandwich)
   in_tab %>%
     group_by(across(all_of(grouping_vars))) %>%
     group_split() %>%
-    map_dfr(
+    purrr::map_dfr(
       .calc_errorprone_stats, stat_fun=stat_fun,
       grouping_vars=grouping_vars, ...
     )

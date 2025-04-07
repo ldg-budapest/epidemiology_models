@@ -6,7 +6,6 @@
 # Importing tidyverse packages, in case it has not been initialized yet
 library(tidyr)
 library(dplyr)
-library(stringr)
 library(purrr)
 
 
