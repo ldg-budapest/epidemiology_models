@@ -6,11 +6,18 @@
 # Importing tidyverse packages, in case it has not been initialized yet
 library(tidyr)
 library(dplyr)
-library(purrr)
 
+#' @param in_tab Input dataframe, containing .
+#' @param grouping_vars  The columns that identify strata, in addtion to Age and Sex.
+#' @param base_min Starting year (time) of the period to use for regression.
+#' @param base_max End year (time) of the period to use for regression.
+#' @param collapse_ages If ages shold be used only as a co-variate or provide estimates separately.
+#' @return A dataframe with grouping variables, the observed and the expected case numbers
+#' @examples
+#' calculate_poisson_expectation("Diagnosis", 2011, 2019))
 calculate_poisson_expectation <- function(
-    in_tab, grouping_vars, collapse_ages=TRUE,
-    base_min=2011, base_max=2019, ...
+    in_tab, grouping_vars, base_min=2011, base_max=2019,
+    collapse_ages=TRUE, ...
 ) {
   model_input <- in_tab %>%
     mutate(
@@ -59,34 +66,4 @@ calculate_poisson_expectation <- function(
     ) %>%
     ungroup()
   
-}
-
-.calc_errorprone_rr <- function(N_cases, Population, Predicted_numbers, Population_base, ...){
-  tryCatch(
-    expr = {
-      out_df <- data.frame(...)
-      in_data <- matrix(
-        c(
-          Population-N_cases, Population_base-Predicted_numbers,
-          N_cases, Predicted_numbers
-        ),
-        nrow=2
-      )
-      
-      rr_res <- in_data %>%
-        riskratio() %>%
-        .$measure %>%
-        .[2,]
-      
-      out_df %>%
-        mutate(
-          RR=rr_res["estimate"],
-          lower=rr_res["lower"],
-          upper=rr_res["upper"]
-        )
-    },
-    error = function(e){
-      data.frame(...)
-    }
-  )
 }
