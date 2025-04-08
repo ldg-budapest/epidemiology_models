@@ -8,7 +8,7 @@ output:
 params:
   report_title: "Showcase functionality of scripts in repo"
   report_author: "Tamas Szabo"
-knit: "(function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(dirname(dirname(inputFile)),'reports',paste(substr(basename(inputFile),1,nchar(basename(inputFile))-2),'_',Sys.Date(),'.md',sep=''))) })"
+knit: "(function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(dirname(dirname(inputFile)),'reports',paste(substr(basename(inputFile),1,nchar(basename(inputFile))-4),'.md',sep=''))) })"
 ---
 
 # Setup
@@ -59,7 +59,9 @@ example_dataset <- example_dataset %>%
   ) %>%
   bind_rows(example_dataset)
 
-head(example_dataset)
+example_dataset %>%
+  head() %>%
+  knitr::kable()
 ```
 
 ```{r message=FALSE, warning=FALSE}
@@ -95,7 +97,9 @@ age_10_dataset <- age_10_dataset %>%
   ) %>%
   bind_rows(age_10_dataset)
 
-head(age_10_dataset)
+age_10_dataset %>%
+  head() %>%
+  knitr::kable()
 ```
 
 # Functionality
@@ -119,7 +123,8 @@ standardized_table %>%
     value = round(value, 2)
   ) %>%
   pivot_wider() %>%
-  tail(8)
+  tail(8) %>%
+  knitr::kable()
 ```
 
 The same function can be used to calculate direct standardized rates
@@ -137,7 +142,8 @@ standardized_table %>%
   ) %>%
   pivot_wider(names_from=c("Diagnosis", "Sex")) %>%
   arrange(desc(Period)) %>%
-  head()
+  head() %>%
+  knitr::kable()
 ```
 
 The 10-year granularity should not differ much from single-year granularity:
@@ -155,7 +161,8 @@ standardized_table %>%
   ) %>%
   pivot_wider(names_from=c("Diagnosis", "Sex")) %>%
   arrange(desc(Period)) %>%
-  head()
+  head() %>%
+  knitr::kable()
 ```
 
 A convenience option is to standardize to one of the years also present in the data by simply supplying that year as a parameter.
@@ -173,7 +180,8 @@ standardized_table %>%
   ) %>%
   pivot_wider(names_from=c("Diagnosis", "Sex")) %>%
   arrange(desc(Period)) %>%
-  head()
+  head() %>%
+  knitr::kable()
 ```
 
 Please note, however that DSRs are applied to the total population and not to separate age groups. Rates could be projected onto the population of a single year, by explicitly providing weight tables for as bands as below:
@@ -202,7 +210,8 @@ standardized_table %>%
     value = round(value, 2)
   ) %>%
   pivot_wider(names_from=c("Sex", "Diagnosis")) %>%
-  tail(8)
+  tail(8) %>%
+  knitr::kable()
 ```
 
 As a comparison, the raw rates in the above age groups in 2021 was:
@@ -218,7 +227,8 @@ standardized_table %>%
     value = round(value, 2)
   ) %>%
   pivot_wider(names_from=c("Sex", "Diagnosis")) %>%
-  tail(8)
+  tail(8) %>%
+  knitr::kable()
 ```
 
 ## Average yearly change
@@ -237,7 +247,8 @@ standardized_table <- age_10_dataset %>%
     c("Diagnosis")
   )
 
-head(standardized_table)
+standardized_table %>%
+  knitr::kable()
 ```
 
 This could be done separately for age groups in the merged dataset.
@@ -256,7 +267,8 @@ standardized_table %>%
     value = round(value, 3)
   ) %>%
   pivot_wider() %>%
-  tail(8)
+  tail(8) %>%
+  knitr::kable()
 ```
 
 Better still, if this is calculated from the 1-year granularity of age groups:
@@ -278,7 +290,8 @@ standardized_table %>%
     value = round(value, 3)
   ) %>%
   pivot_wider() %>%
-  tail(8)
+  tail(8) %>%
+  knitr::kable()
 ```
 
 ## Expected case numbers
@@ -314,7 +327,8 @@ standardized_table %>%
     value = round(value, 2)
   ) %>%
   pivot_wider(names_from=c("Sex", "Diagnosis")) %>%
-  tail(8)
+  tail(8) %>%
+  knitr::kable()
 ```
 
 As a reference, observed case numbers look as below.
@@ -327,7 +341,8 @@ standardized_table %>%
     value = round(value, 2)
   ) %>%
   pivot_wider(names_from=c("Sex", "Diagnosis")) %>%
-  tail(8)
+  tail(8) %>%
+  knitr::kable()
 ```
 
 As an alternative reference, expected case numbers calculated from virtual numbers back-projected from rates.
@@ -356,7 +371,8 @@ standardized_table <- purrr::map_dfr(
 standardized_table %>%
   filter(Period == "2021", Sex != "Total") %>%
   head(8) %>%
-  select(Sex, Age, Diagnosis, N_cases, Projected_cases)
+  select(Sex, Age, Diagnosis, N_cases, Projected_cases) %>%
+  knitr::kable()
 ```
 
 ## Impact of COVID years
@@ -389,15 +405,14 @@ riskdiff_table <- expectation_table %>%
   select(-Age_bin) %>%
   calculate_risk_difference()
 
-riskdiff_table
+riskdiff_table %>%
+  knitr::kable()
 ```
 
 An even more robust solution is to use the same Poisson model that yielded expected numbers and add the post-COVID years as a dummy variable.
 
 ```{r}
-source("../scripts/risk_change_covid_years.R")
-
-example_dataset %>%
+covid_impact_table <- example_dataset %>%
   filter(Age %in% seq(60, 69), Sex == "Total") %>%
   mutate(
     Age_bin = case_when(
@@ -412,6 +427,9 @@ example_dataset %>%
     grouping_vars = c("Diagnosis", "Age_bin"),
     impacted_years = c(2020, 2021)
 )
+
+covid_impact_table %>%
+  knitr::kable()
 ```
 
 # End
