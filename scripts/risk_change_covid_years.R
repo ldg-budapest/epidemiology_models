@@ -7,6 +7,7 @@
 library(tidyr)
 library(dplyr)
 library(purrr)
+library(tibble)
 library(epitools)
 
 
@@ -83,46 +84,41 @@ calculate_risk_difference <- function(in_tab){
 #' @return A dataframe with grouping variables and the calcualted estimated value, CI_lo, CI_hi and p-value.
 #' @examples
 #' add_impact_CI_from_model(calculated_model, stub_df)
-  .add_impact_CI_from_model <- function(
-    calculated_model, stub_df, mid_var="estimate"
-) {
+  .add_impact_CI_from_model <- function(calculated_model, stub_df) {
   
-  #TODO: extract estimate for year dummies, not the timeline
-
   # Use the robust method in the sandwich package to estimate significance
   result_estimate_p <- calculated_model %>%
     lmtest::coeftest(vcov = sandwich::sandwich) %>%
-    .[2,] %>% 
+    .[-1,] %>% 
     data.frame() %>%
-    t()
+    tibble::rownames_to_column("Modelparam") %>%
+    select(Modelparam, estimate=Estimate, pvalue=`Pr...z..`)
+    
 
   # Use the robust method in the sandwich package to estimate CIs
   ci_df <- calculated_model %>%
     lmtest::coefci(vcov = sandwich::sandwich) %>%
     data.frame() %>%
-    slice(2)
+    tibble::rownames_to_column("Modelparam") %>%
+    slice(-1)
   
-  # Add calculated values to a stub of the input
-  stub_df[["impact"]] <- result_estimate_p[1]
-  stub_df$CI_lo <- ci_df[[1]]
-  stub_df$CI_hi <- ci_df[[2]]
-  stub_df$p_value <- result_estimate_p[4]
-    
-  stub_df
+  colnames(ci_df) <- c("Modelparam", "CI_lo", "CI_hi")
+  
+  stub_df %>%
+    crossing(result_estimate_p) %>%
+    left_join(ci_df, by="Modelparam")
+  
 }
 
 
 #' @param in_tab Input dataframe, containing case numbers, population size and time informaiton.
 #' @param grouping_vars  The columns that identify strata, in addtion to Age and Sex.
-#' @param base_min Starting year (time) of the period to use for regression.
-#' @param base_max End year (time) of the period to use for regression.
 #' @param impacted_years Years, where the impact (difference) is estimated.
 #' @return A dataframe with grouping variables and an estimate of the impact for the given period(s).
 #' @examples
 #' calculate_impact_of_year("Diagnosis", 2011, 2019)
 calculate_impact_of_year <- function(
-    in_tab, grouping_vars, base_min=2011, base_max=2019,
-    impacted_years = c(2020, 2021), ...
+    in_tab, grouping_vars, impacted_years = c(2020, 2021), ...
 ) {
   model_input <- in_tab %>%
     mutate(
@@ -132,6 +128,7 @@ calculate_impact_of_year <- function(
       logpop   = log(Population)
     )
   
+  #TODO: a cleaner way to one-hot encode the COVID-years
   for (PR_year in impacted_years) {
     model_input[[paste("Period", PR_year, sep="_")]] <- ifelse(
       model_input$Period == PR_year, 1, 0
@@ -144,7 +141,6 @@ calculate_impact_of_year <- function(
     as.formula()
   
   model <- model_input %>%
-    filter(Period %in% seq(base_min, base_max)) %>%
     mutate(
       Period = as.numeric(Period)
     ) %>%

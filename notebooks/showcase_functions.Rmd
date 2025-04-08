@@ -394,7 +394,6 @@ riskdiff_table
 
 An even more robust solution is to use the same Poisson model that yielded expected numbers and add the post-COVID years as a dummy variable.
 
-
 ```{r}
 source("../scripts/risk_change_covid_years.R")
 
@@ -406,6 +405,7 @@ example_dataset %>%
       TRUE ~ NA_character_
     )
   ) %>%
+  filter(Period < 2022) %>%
   group_split(Diagnosis, Sex, Age_bin) %>%
   map_dfr(
     calculate_impact_of_year,
