@@ -1,0 +1,191 @@
+---
+title: "`r params$report_title`"
+author: "`r params$report_author`"
+date: "`r Sys.Date()`"
+output:
+  md_document:
+    variant: markdown_github
+params:
+  report_title: "Showcase repo functionality via plots"
+  report_author: "Tamas Szabo"
+knit: "(function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(dirname(dirname(inputFile)),'reports',paste(substr(basename(inputFile),1,nchar(basename(inputFile))-4),'.md',sep=''))) })"
+---
+
+# Setup
+
+## Library imports
+
+```{r include=FALSE, warning=FALSE, message=FALSE}
+library(tidyr)
+library(dplyr)
+
+library(ggplot2)
+```
+
+## Example dataset
+
+A realistic dataset of colorectal and lung cancer mortality is used as an example input. The important difference compared to the actual data that can be downloaded is the 1-year granularity of age (instead of 5-year groups).
+
+```{r message=FALSE, warning=FALSE}
+example_dataset <- "../example_data/crc_lung_mortality.csv" %>%
+  read.csv(check.names=FALSE) %>%
+  pivot_longer(
+    one_of("Colorectal (C18)", "Lung (C33-34)"),
+    names_to = "Diagnosis", values_to = "N_cases"
+  ) %>%
+  mutate(
+    Age = as.character(Age)
+  )
+
+# Commonly, numbers for both sexes merged are also present
+example_dataset <- example_dataset %>%
+  group_by(Age, Period, Diagnosis) %>%
+  summarise(
+    N_cases = sum(N_cases, na.rm=TRUE),
+    Population = sum(Population, na.rm=TRUE)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    Sex = "Total"
+  ) %>%
+  bind_rows(example_dataset)
+
+# Adding the total age group to show it does not interfere with models
+example_dataset <- example_dataset %>%
+  group_by(Sex, Period, Diagnosis) %>%
+  summarise(
+    N_cases = sum(N_cases, na.rm=TRUE),
+    Population = sum(Population, na.rm=TRUE)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    Age = "Total"
+  ) %>%
+  select(Diagnosis, Age, Sex, Period, N_cases, Population) %>%
+  bind_rows(example_dataset)
+
+example_dataset %>%
+  filter(Diagnosis == "Lung (C33-34)", Period == "2018") %>%
+  filter(Sex == "Total", Age %in% seq(88, 90)) %>%
+  head() %>%
+  knitr::kable()
+```
+
+# Fundamental charts
+
+## Standardized rates
+
+The table output of the standardization step is expected to look as below:
+
+```{r message=FALSE, warning=FALSE}
+source("../scripts/standardized_rates.R")
+
+standardized_table <- example_dataset %>%
+  calculate_standardized_rate(
+    extra_grouping_cols="Diagnosis",
+    standard_population = "2011"
+  )
+
+standardized_table %>%
+  filter(Period == "2021", Sex != "Total") %>%
+  select(Age, Sex, Diagnosis, value=Std_rate) %>%
+  mutate(
+    value = round(value, 2)
+  ) %>%
+  knitr::kable()
+```
+
+Graphical representation of the data would look something like:
+
+```{r}
+standardized_table %>%
+  ggplot(aes(x=Period, y=Std_rate, color=Sex, group=Sex)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap("Diagnosis") +
+  theme_bw() +
+  theme(
+    legend.position = "bottom"
+  ) +
+  labs(x="", y="Incidence rate projected to 2011")
+```
+
+## Average annual change
+
+```{r message=FALSE, warning=FALSE}
+source("../scripts/annual_rate_change.R")
+
+change_table <- example_dataset %>%
+  filter(Period %in% seq(2011, 2019)) %>%
+  filter(Age != "Total") %>% #, Sex = "Total") %>%
+  calculate_poisson_rate(c("Sex", "Diagnosis")) %>%
+  mutate(
+    Age = "Total"
+  )
+  
+change_table <- data.frame(
+    x=seq(0, 90, 10), y=seq(9, 100, 10)
+  ) %>%
+  purrr::pmap_dfr(
+    function(x, y) {
+      example_dataset %>%
+        filter(Period %in% seq(2011, 2019)) %>%
+        filter(Age %in% seq(x, y)) %>% #, Sex = "Total") %>%
+        calculate_poisson_rate(c("Sex", "Diagnosis")) %>%
+        mutate(
+          Age = paste(x, y, sep="-")
+        )
+    }
+  ) %>%
+  bind_rows(change_table)
+
+change_table %>%
+  filter(Sex != "Total") %>%
+  ggplot(aes(x=estimate, y=Age, color=Sex)) +
+  geom_errorbarh(
+    aes(xmin=CI_lo, xmax=CI_hi), position=position_dodge(width=0.6)
+  ) +
+  geom_point(position=position_dodge(width=0.6)) +
+  facet_wrap("Diagnosis") +
+  scale_x_continuous(labels=scales::percent) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom"
+  ) +
+  labs(x="", y="")
+```
+
+## Impact of COVID-years
+
+```{r message=FALSE, warning=FALSE}
+source("../scripts/expected_case_numbers.R")
+source("../scripts/risk_change_covid_years.R")
+
+expectation_table <- example_dataset %>%
+  filter(Age != "Total", Sex != "Total") %>%
+  calculate_poisson_expectation(
+    grouping_vars = c("Diagnosis", "Sex")
+  ) %>%
+  mutate(
+    Age = "Total"
+  )
+  
+expectation_table <- data.frame(
+    x=seq(0, 90, 10), y=seq(9, 100, 10)
+  ) %>%
+  purrr::pmap_dfr(
+    function(x, y) {
+      example_dataset %>%
+        filter(Age %in% seq(x, y), Sex != "Total") %>%
+        calculate_poisson_expectation(
+          grouping_vars = c("Diagnosis", "Sex")
+        ) %>%
+        mutate(
+          Age = paste(x, y, sep="-")
+        )
+    }
+  ) %>%
+  bind_rows(expectation_table)
+```
+
+# End
