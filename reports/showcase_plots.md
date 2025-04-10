@@ -1,32 +1,15 @@
----
-title: "`r params$report_title`"
-author: "`r params$report_author`"
-date: "`r Sys.Date()`"
-output:
-  md_document:
-    variant: markdown_github
-params:
-  report_title: "Showcase repo functionality via plots"
-  report_author: "Tamas Szabo"
-knit: "(function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(dirname(dirname(inputFile)),'reports',paste(substr(basename(inputFile),1,nchar(basename(inputFile))-4),'.md',sep=''))) })"
----
-
 # Setup
 
 ## Library imports
 
-```{r include=FALSE, warning=FALSE, message=FALSE}
-library(tidyr)
-library(dplyr)
-
-library(ggplot2)
-```
-
 ## Example dataset
 
-A realistic dataset of colorectal and lung cancer mortality is used as an example input. The important difference compared to the actual data that can be downloaded is the 1-year granularity of age (instead of 5-year groups).
+A realistic dataset of colorectal and lung cancer mortality is used as
+an example input. The important difference compared to the actual data
+that can be downloaded is the 1-year granularity of age (instead of
+5-year groups).
 
-```{r message=FALSE, warning=FALSE}
+``` r
 example_dataset <- "../example_data/crc_lung_mortality.csv" %>%
   read.csv(check.names=FALSE) %>%
   pivot_longer(
@@ -71,13 +54,20 @@ example_dataset %>%
   knitr::kable()
 ```
 
+| Diagnosis     | Age | Sex   | Period | N_cases | Population |
+|:--------------|:----|:------|-------:|--------:|-----------:|
+| Lung (C33-34) | 88  | Total |   2018 |      68 |    22626.0 |
+| Lung (C33-34) | 89  | Total |   2018 |      58 |    18226.5 |
+| Lung (C33-34) | 90  | Total |   2018 |      96 |    62032.0 |
+
 # Fundamental charts
 
 ## Standardized rates
 
-The table output of the standardization step is expected to look as below:
+The table output of the standardization step is expected to look as
+below:
 
-```{r message=FALSE, warning=FALSE}
+``` r
 source("../scripts/standardized_rates.R")
 
 standardized_table <- example_dataset %>%
@@ -95,9 +85,16 @@ standardized_table %>%
   knitr::kable()
 ```
 
+| Age   | Sex    | Diagnosis        | value |
+|:------|:-------|:-----------------|------:|
+| Total | Female | Colorectal (C18) | 26.73 |
+| Total | Male   | Colorectal (C18) | 33.51 |
+| Total | Female | Lung (C33-34)    | 58.61 |
+| Total | Male   | Lung (C33-34)    | 86.41 |
+
 Graphical representation of the data would look something like:
 
-```{r}
+``` r
 standardized_table %>%
   ggplot(aes(x=Period, y=Std_rate, color=Sex, group=Sex)) +
   geom_line() +
@@ -110,9 +107,11 @@ standardized_table %>%
   labs(x="", y="Incidence rate projected to 2011", color="")
 ```
 
+![](C:\Users\szatamas\OneDrive%20-%20Merck%20Sharp%20&%20Dohme%20LLC\Documents\Code_repos\Analyses\epidemiology_models\reports\showcase_plots_files/figure-markdown_github/unnamed-chunk-4-1.png)
+
 ## Average annual change
 
-```{r message=FALSE, warning=FALSE}
+``` r
 source("../scripts/annual_rate_change.R")
 
 change_table <- example_dataset %>%
@@ -155,11 +154,14 @@ change_table %>%
   labs(x="", y="", color="")
 ```
 
+![](C:\Users\szatamas\OneDrive%20-%20Merck%20Sharp%20&%20Dohme%20LLC\Documents\Code_repos\Analyses\epidemiology_models\reports\showcase_plots_files/figure-markdown_github/unnamed-chunk-5-1.png)
+
 ## Impact of indidual years
 
-As a first step, as well as a sanity check, calculate expected numbers first.
+As a first step, as well as a sanity check, calculate expected numbers
+first.
 
-```{r message=FALSE, warning=FALSE}
+``` r
 source("../scripts/expected_case_numbers.R")
 source("../scripts/risk_change_covid_years.R")
 
@@ -200,9 +202,11 @@ expectation_table %>%
   facet_grid("Sex~Diagnosis")
 ```
 
+![](C:\Users\szatamas\OneDrive%20-%20Merck%20Sharp%20&%20Dohme%20LLC\Documents\Code_repos\Analyses\epidemiology_models\reports\showcase_plots_files/figure-markdown_github/unnamed-chunk-6-1.png)
+
 As a next step, impact can be estimated as risk differences.
 
-```{r message=FALSE, warning=FALSE}
+``` r
 riskdiff_table <- expectation_table %>%
   filter(Period %in% seq(2020, 2021)) %>%
   calculate_risk_difference()
@@ -223,9 +227,13 @@ riskdiff_table %>%
   labs(x="", y="", color="")
 ```
 
-An alternative would be to use the same model for extrapolation and assessment of the impact. The resulting change estimates should be similar to the ones above.
+![](C:\Users\szatamas\OneDrive%20-%20Merck%20Sharp%20&%20Dohme%20LLC\Documents\Code_repos\Analyses\epidemiology_models\reports\showcase_plots_files/figure-markdown_github/unnamed-chunk-7-1.png)
 
-```{r message=FALSE, warning=FALSE}
+An alternative would be to use the same model for extrapolation and
+assessment of the impact. The resulting change estimates should be
+similar to the ones above.
+
+``` r
 yearly_impact_table <- data.frame(
     x=seq(0, 90, 10), y=seq(9, 100, 10)
   ) %>%
@@ -266,5 +274,7 @@ yearly_impact_table %>%
   ) +
   labs(x="", y="", color="")
 ```
+
+![](C:\Users\szatamas\OneDrive%20-%20Merck%20Sharp%20&%20Dohme%20LLC\Documents\Code_repos\Analyses\epidemiology_models\reports\showcase_plots_files/figure-markdown_github/unnamed-chunk-8-1.png)
 
 # End
