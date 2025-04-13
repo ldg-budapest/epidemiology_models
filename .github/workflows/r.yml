@@ -6,7 +6,7 @@
 # See https://github.com/r-lib/actions/tree/master/examples#readme for
 # additional example workflows available for the R community.
 
-name: R
+name: Test R functions
 
 on:
   push:
@@ -34,7 +34,9 @@ jobs:
         run: |
           install.packages(c("remotes", "rcmdcheck", "dplyr, "tidyr", "purrr", "lmtest", "sandwich"))
           remotes::install_deps(dependencies = TRUE)
-        shell: Rscript tests/test_standardized_rates.R
+        shell: Rscript {0}
       - name: Check
-        run: rcmdcheck::rcmdcheck(args = "--no-manual", error_on = "error")
+        run: |
+          source("tests/test_standardized_rates.R")
+          source("tests/test_annual_rate_change.R")
         shell: Rscript {0}
