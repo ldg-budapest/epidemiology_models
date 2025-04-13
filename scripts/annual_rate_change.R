@@ -58,7 +58,7 @@ library(sandwich)
 #' @return A dataframe with grouping variables and the calculated estimate, CI_lo, CI_hi and p-value.
 #' @examples
 #' add_mid_CI_from_model(calculated_model, stub_df)
-.create_poisson_df <- function(
+.poisson_rate_for_layer <- function(
     in_tab, grouping_vars, mid_var="estimate",
     ...
 ) {
@@ -110,12 +110,12 @@ library(sandwich)
 
 
 #' Wrapper that handles error for one single data layer
-.calc_errorprone_stats <- function(
-    in_tab, stat_fun, grouping_vars=c("Diagnosis"), ...
+.safe_poisson_rate_for_layer <- function(
+    in_tab, grouping_vars=c("Diagnosis"), ...
 ){
   tryCatch(
     expr = {
-      stat_fun(in_tab, grouping_vars=grouping_vars, ...)
+      .poisson_rate_for_layer(in_tab, grouping_vars=grouping_vars, ...)
     },
     error = function(e){
       in_tab %>%
@@ -126,20 +126,12 @@ library(sandwich)
 }
 
 
-#' Wrapper that applies calculation for each data layer
-.calc_layered_stat <- function(in_tab, stat_fun, grouping_vars, ...) {
+#' High-level convenience function to fit a Poisson model on each data layer, skipping errors
+calculate_poisson_rate <- function(in_tab, grouping_vars, ...) {
   in_tab %>%
     group_by(across(all_of(grouping_vars))) %>%
     group_split() %>%
     purrr::map_dfr(
-      .calc_errorprone_stats, stat_fun=stat_fun,
-      grouping_vars=grouping_vars, ...
+      .safe_poisson_rate_for_layer, grouping_vars=grouping_vars, ...
     )
-  
-}
-
-
-#' High-level convenience function to fit a Poisson model on each data layer, skipping errors
-calculate_poisson_rate <- function(in_tab, grouping_vars, ...) {
-  .calc_layered_stat(in_tab, .create_poisson_df, grouping_vars, ...)
 }
