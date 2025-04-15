@@ -31,9 +31,7 @@ jobs:
         with:
           r-version: ${{ matrix.r-version }}
       - name: Install dependencies
-        run: |
-          install.packages(c("remotes", "dplyr", "tidyr", "purrr", "testthat", "lmtest", "sandwich", "epitools"))
-          remotes::install_deps(dependencies = TRUE)
+        run: install.packages(c("dplyr", "tidyr", "purrr", "testthat", "lmtest", "sandwich", "epitools"))
         shell: Rscript {0}
         
       - name: Check tests
