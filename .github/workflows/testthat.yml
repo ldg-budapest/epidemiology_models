@@ -19,23 +19,20 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        r-version: ['3.6.3', '4.1.1']
-
+    runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up R ${{ matrix.r-version }}
-        uses: r-lib/actions/setup-r@f57f1301a053485946083d7a45022b278929a78a
+      - uses: actions/checkout@v2
+
+      - uses: r-lib/actions/setup-r@v1
         with:
-          r-version: ${{ matrix.r-version }}
-      - name: Install dependencies
-        run: |
-          install.packages(c("remotes", "rcmdcheck", "dplyr", "tidyr", "purrr", "lmtest", "sandwich"))
-          remotes::install_deps(dependencies = TRUE)
-        shell: Rscript {0}
-      - name: Check
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v1
+        with:
+          extra-packages: dplyr tidyr purrr testthat lmtest sandwich epitools
+
+      - name: Check tests
         run: |
           source("tests/test_standardized_rates.R")
           source("tests/test_annual_rate_change.R")
