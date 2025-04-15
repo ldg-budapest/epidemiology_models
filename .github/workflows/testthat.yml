@@ -20,18 +20,22 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+    strategy:
+      matrix:
+        r-version: ['3.6.3', '4.1.1']
+
     steps:
-      - uses: actions/checkout@v2
-
-      - uses: r-lib/actions/setup-r@v1
+      - uses: actions/checkout@v4
+      - name: Set up R ${{ matrix.r-version }}
+        uses: r-lib/actions/setup-r@f57f1301a053485946083d7a45022b278929a78a
         with:
-          use-public-rspm: true
-
-      - uses: r-lib/actions/setup-r-dependencies@v1
-        with:
-          extra-packages: dplyr tidyr purrr testthat lmtest sandwich epitools
-
+          r-version: ${{ matrix.r-version }}
+      - name: Install dependencies
+        run: |
+          install.packages(c("remotes", "dplyr, "tidyr", "purrr", "testthat", "lmtest", "sandwich", "epitools"))
+          remotes::install_deps(dependencies = TRUE)
+        shell: Rscript {0}
+        
       - name: Check tests
         run: |
           source("tests/test_standardized_rates.R")
