@@ -36,6 +36,6 @@ jobs:
         
       - name: Check tests
         run: |
-          source("tests/test_standardized_rates.R")
-          source("tests/test_annual_rate_change.R")
+          source("tests/test_standardized_rates.R", chdir=TRUE)
+          source("tests/test_annual_rate_change.R", chdir=TRUE)
         shell: Rscript {0}
