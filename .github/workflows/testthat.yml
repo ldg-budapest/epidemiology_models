@@ -36,5 +36,5 @@ jobs:
         
       - name: Check tests
         run: |
-          source("tests/test_main.R)
+          source("tests/test_main.R")
         shell: Rscript {0}
