@@ -2,21 +2,6 @@
 # Test rate standardization                                 #
 #############################################################
 
-# Importing tidyverse packages, in case it has not been initialized yet
-library(tidyr)
-library(dplyr)
-library(testthat)
-
-example_dataset <- "../example_data/crc_lung_mortality.csv" %>%
-  read.csv(check.names=FALSE) %>%
-  pivot_longer(
-    one_of("Colorectal (C18)", "Lung (C33-34)"),
-    names_to = "Diagnosis", values_to = "N_cases"
-  ) %>%
-  mutate(
-    Age = as.character(Age)
-  )
-
 source("../scripts/standardized_rates.R")
 
 standardized_table <- example_dataset %>%
