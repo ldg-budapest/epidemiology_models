@@ -2,7 +2,7 @@
 # Test rate standardization                                 #
 #############################################################
 
-source("../scripts/standardized_rates.R")
+source("../scripts/standardized_rates.R", chdir=TRUE)
 
 standardized_table <- example_dataset %>%
   calculate_standardized_rate(

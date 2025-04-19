@@ -116,10 +116,11 @@ calculate_risk_difference <- function(in_tab){
 #' @param impacted_years Years, where the impact (difference) is estimated.
 #' @return A dataframe with grouping variables and an estimate of the impact for the given period(s).
 #' @examples
-#' calculate_impact_of_year("Diagnosis", 2011, 2019)
-calculate_impact_of_year <- function(
-    in_tab, grouping_vars, impacted_years = c(2020, 2021), ...
+#' .calculate_impact_of_year_on_layer()"Diagnosis", 2011, 2019)
+.calculate_impact_of_year_on_layer <- function(
+    in_tab, grouping_vars, impacted_years, ...
 ) {
+  
   model_input <- in_tab %>%
     mutate(
       N_cases  = round(N_cases, 0),
@@ -154,4 +155,18 @@ calculate_impact_of_year <- function(
       model, distinct(in_tab[, grouping_vars])
     )
 
+}
+
+#' @param in_tab Input dataframe, containing case numbers, population size and time informaiton.
+#' @param grouping_vars  The columns that identify strata, in addtion to Age and Sex.
+#' @param impacted_years Years, where the impact (difference) is estimated.
+#' @return A dataframe with grouping variables and an estimate of the impact for the given period(s).
+#' @examples
+#' calculate_impact_of_year("Diagnosis", 2011, 2019)
+calculate_impact_of_year <- function(
+    in_tab, grouping_vars, impacted_years = c(2020, 2021), ...
+) {
+  calculate_model_across_layers(
+    in_tab, .calculate_impact_of_year_on_layer, grouping_vars, ...
+  )
 }

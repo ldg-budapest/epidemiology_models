@@ -12,6 +12,8 @@ library(purrr)
 library(lmtest)
 library(sandwich)
 
+source("shared_wrappers.R")
+
 
 #' Calculate the estimated value and the Confidence Interval from a Poisson-model
 #'
@@ -108,30 +110,9 @@ library(sandwich)
 
 }
 
-
-#' Wrapper that handles error for one single data layer
-.safe_poisson_rate_for_layer <- function(
-    in_tab, grouping_vars=c("Diagnosis"), ...
-){
-  tryCatch(
-    expr = {
-      .poisson_rate_for_layer(in_tab, grouping_vars=grouping_vars, ...)
-    },
-    error = function(e){
-      in_tab %>%
-        select(one_of(grouping_vars)) %>%
-        distinct()
-    }
-  )
-}
-
-
 #' High-level convenience function to fit a Poisson model on each data layer, skipping errors
 calculate_poisson_rate <- function(in_tab, grouping_vars, ...) {
-  in_tab %>%
-    group_by(across(all_of(grouping_vars))) %>%
-    group_split() %>%
-    purrr::map_dfr(
-      .safe_poisson_rate_for_layer, grouping_vars=grouping_vars, ...
-    )
+  calculate_model_across_layers(
+    in_tab, .poisson_rate_for_layer, grouping_vars, ...
+  )
 }

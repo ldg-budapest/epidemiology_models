@@ -2,7 +2,7 @@
 # Test rate change calculation                              #
 #############################################################
 
-source("../scripts/expected_case_numbers.R")
+source("../scripts/expected_case_numbers.R", chdir=TRUE)
 
 expectation_table <- example_dataset %>%
   filter(Age != "Total") %>%
