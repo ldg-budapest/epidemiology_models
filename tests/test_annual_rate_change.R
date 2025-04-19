@@ -2,20 +2,7 @@
 # Test rate change calculation                              #
 #############################################################
 
-# Importing tidyverse packages, in case it has not been initialized yet
-library(tidyr)
-library(dplyr)
-library(testthat)
-
-example_dataset <- "../example_data/crc_lung_mortality.csv" %>%
-  read.csv(check.names=FALSE) %>%
-  pivot_longer(
-    one_of("Colorectal (C18)", "Lung (C33-34)"),
-    names_to = "Diagnosis", values_to = "N_cases"
-  ) %>%
-  mutate(
-    Age = as.character(Age)
-  )
+source("../scripts/annual_rate_change.R")
 
 age_10_dataset <- example_dataset %>%
   filter(Age != "Total") %>%
@@ -35,9 +22,6 @@ age_10_dataset <- example_dataset %>%
     N_cases = sum(N_cases, na.rm=TRUE)
   ) %>%
   ungroup()
-
-
-source("../scripts/annual_rate_change.R")
 
 change_estimations <- age_10_dataset %>%
   filter(Period %in% seq(2011, 2019)) %>%
