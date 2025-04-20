@@ -11,18 +11,27 @@ library(purrr)
 
 # Error handling for strata where statistic cannot be calculated
 execute_model_safely <- function(
-    in_tab, stat_fun, grouping_vars, ...
+    in_tab, stat_fun, grouping_vars, err_fun=NULL, debug_mode=FALSE, ...
 ){
-  tryCatch(
-    expr = {
-      stat_fun(in_tab, grouping_vars=grouping_vars, ...)
-    },
-    error = function(e){
+  
+  if(is.null(err_fun)) {
+    err_fun <- function() {
       in_tab %>%
         select(one_of(grouping_vars)) %>%
         distinct()
     }
-  )
+  }
+  
+  if (debug_mode) {
+    tryCatch(
+      expr = {
+        stat_fun(in_tab, grouping_vars=grouping_vars, ...)
+      },
+      error = err_fun
+    )
+  } else {
+    stat_fun(in_tab, grouping_vars=grouping_vars, ...)
+  }
 }
 
 # Convenience function to apply the statistical calculation to individual strata

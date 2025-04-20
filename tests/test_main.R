@@ -22,7 +22,7 @@ example_dataset <- "example_data/crc_lung_mortality.csv" %>%
 
 # Run each set of tests in the folder
 for (fn in dir("tests")) {
-  if (fn != "test_main.R" & grepl("risk", fn)) {
+  if (fn != "test_main.R") {
     cat("Running tests in ", fn, "\n")
     source(file.path("tests", fn), chdir=TRUE)
     cat("Completed tests in ", fn, "\n")

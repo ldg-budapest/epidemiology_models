@@ -9,7 +9,7 @@ yearly_impact_table <- example_dataset %>%
   filter(Age %in% seq(60, 69)) %>%
   calculate_impact_of_year(
     grouping_vars = c("Diagnosis", "Sex"),
-    impacted_years = c(2020, 2021)
+    impacted_years = c(2020, 2021), debug_mode=T
   )
 
 impact_percent <- yearly_impact_table %>%
