@@ -23,14 +23,14 @@ execute_model_safely <- function(
   }
   
   if (debug_mode) {
+    stat_fun(in_tab, grouping_vars=grouping_vars, ...)
+  } else {
     tryCatch(
       expr = {
         stat_fun(in_tab, grouping_vars=grouping_vars, ...)
       },
-      error = err_fun
+      error = err_fun()
     )
-  } else {
-    stat_fun(in_tab, grouping_vars=grouping_vars, ...)
   }
 }
 
@@ -42,4 +42,35 @@ calculate_model_across_layers <- function(in_tab, stat_fun, grouping_vars, ...) 
     purrr::map_dfr(
       execute_model_safely, stat_fun=stat_fun, grouping_vars=grouping_vars, ...
     )
+}
+
+# Shortcut to calculate estimates for age groups
+execute_model_on_age_bins <- function(
+  input_tab, age_bins, stat_fun, add_total_age=TRUE, ...
+) {
+  
+  out_tab <- data.frame(
+      x=age_bins, y=age_bin_ends
+    ) %>%
+    purrr::pmap_dfr(
+      function(x, y) {
+        input_tab %>%
+          filter(Age %in% seq(x, y)) %>%
+          stat_fun(...) %>%
+          mutate(
+            Age = paste(x, y, sep="-")
+          )
+      }
+    )
+  
+  if(add_total_age) {
+    out_tab <- input_tab %>%
+      stat_fun(...) %>%
+      mutate(
+        Age = "Total"
+      ) %>%
+      bind_rows(out_tab)
+  }
+  
+  out_tab
 }

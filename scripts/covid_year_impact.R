@@ -99,9 +99,10 @@ source("shared_wrappers.R")
 #' @examples
 #' calculate_impact_of_year("Diagnosis", 2011, 2019)
 calculate_impact_of_year <- function(
-    in_tab, grouping_vars, impacted_years = c(2020, 2021), ...
+    in_tab, grouping_vars, impacted_years, ...
 ) {
-  calculate_model_across_layers_n(
-    in_tab, .calculate_impact_of_year_on_layer, grouping_vars,  impacted_years, ...
+  calculate_model_across_layers(
+    in_tab, .calculate_impact_of_year_on_layer, grouping_vars=grouping_vars,
+    impacted_years=impacted_years, ...
   )
 }
