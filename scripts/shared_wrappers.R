@@ -15,8 +15,8 @@ execute_model_safely <- function(
 ){
   
   if(is.null(err_fun)) {
-    err_fun <- function() {
-      in_tab %>%
+    err_fun <- function(x) {
+      x %>%
         select(one_of(grouping_vars)) %>%
         distinct()
     }
@@ -29,7 +29,9 @@ execute_model_safely <- function(
       expr = {
         stat_fun(in_tab, grouping_vars=grouping_vars, ...)
       },
-      error = err_fun()
+      error = function(e){
+        err_fun(in_tab)
+      }
     )
   }
 }
