@@ -17,7 +17,7 @@ source("shared_wrappers.R")
 #' @param N_cases Number of observed cases.
 #' @return A dataframe with one single row, containing input data and risk difference.
 #' @examples
-#' .risk_difference_on_layer(10, 100, 25, 200)
+#' .risk_difference_for_layer(10, 100, 25, 200)
 .risk_difference_for_layer <- function(in_data, contrast_var, ...){
   
   out_df <- in_data %>%

@@ -51,8 +51,8 @@ source("shared_wrappers.R")
 #' @param impacted_years Years, where the impact (difference) is estimated.
 #' @return A dataframe with grouping variables and an estimate of the impact for the given period(s).
 #' @examples
-#' .calculate_impact_of_year_on_layer()"Diagnosis", 2011, 2019)
-.calculate_impact_of_year_on_layer <- function(
+#' .calculate_impact_of_year_for_layer()"Diagnosis", 2011, 2019)
+.calculate_impact_of_year_for_layer <- function(
     in_tab, grouping_vars, impacted_years, ...
 ) {
   
@@ -102,7 +102,7 @@ calculate_impact_of_year <- function(
     in_tab, grouping_vars, impacted_years, ...
 ) {
   calculate_model_across_layers(
-    in_tab, .calculate_impact_of_year_on_layer, grouping_vars=grouping_vars,
+    in_tab, .calculate_impact_of_year_for_layer, grouping_vars=grouping_vars,
     impacted_years=impacted_years, ...
   )
 }
