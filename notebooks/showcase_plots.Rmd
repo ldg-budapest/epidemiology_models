@@ -78,11 +78,11 @@ example_dataset %>%
 The table output of the standardization step is expected to look as below:
 
 ```{r message=FALSE, warning=FALSE}
-source("../scripts/standardized_rates.R")
+source("../scripts/standardized_rates.R", chdir=TRUE)
 
 standardized_table <- example_dataset %>%
   calculate_standardized_rate(
-    extra_grouping_cols="Diagnosis",
+    extra_grouping_vars="Diagnosis",
     standard_population = "2011"
   )
 
@@ -113,31 +113,14 @@ standardized_table %>%
 ## Average annual change
 
 ```{r message=FALSE, warning=FALSE}
-source("../scripts/annual_rate_change.R")
+source("../scripts/annual_rate_change.R", chdir=TRUE)
 
 change_table <- example_dataset %>%
   filter(Period %in% seq(2011, 2019)) %>%
-  filter(Age != "Total") %>% #, Sex = "Total") %>%
-  calculate_poisson_rate(c("Sex", "Diagnosis")) %>%
-  mutate(
-    Age = "Total"
+  filter(Age != "Total") %>%
+  execute_model_on_age_bins(
+    seq(0, 90, 10), calculate_poisson_rate, grouping_vars=c("Sex", "Diagnosis")
   )
-  
-change_table <- data.frame(
-    x=seq(0, 90, 10), y=seq(9, 100, 10)
-  ) %>%
-  purrr::pmap_dfr(
-    function(x, y) {
-      example_dataset %>%
-        filter(Period %in% seq(2011, 2019)) %>%
-        filter(Age %in% seq(x, y)) %>% #, Sex = "Total") %>%
-        calculate_poisson_rate(c("Sex", "Diagnosis")) %>%
-        mutate(
-          Age = paste(x, y, sep="-")
-        )
-    }
-  ) %>%
-  bind_rows(change_table)
 
 change_table %>%
   filter(Sex != "Total") %>%
@@ -160,34 +143,13 @@ change_table %>%
 As a first step, as well as a sanity check, calculate expected numbers first.
 
 ```{r message=FALSE, warning=FALSE}
-source("../scripts/expected_case_numbers.R")
-source("../scripts/risk_change_covid_years.R")
+source("../scripts/expected_case_numbers.R", chdir=TRUE)
 
 expectation_table <- example_dataset %>%
   filter(Age != "Total", Sex != "Total") %>%
-  calculate_poisson_expectation(
-    grouping_vars = c("Diagnosis", "Sex")
-  ) %>%
-  mutate(
-    Age = "Total"
+  execute_model_on_age_bins(
+    seq(0, 90, 10), calculate_poisson_expectation, grouping_vars=c("Sex", "Diagnosis")
   )
-  
-expectation_table <- data.frame(
-    x=seq(0, 90, 10), y=seq(9, 100, 10)
-  ) %>%
-  purrr::pmap_dfr(
-    function(x, y) {
-      example_dataset %>%
-        filter(Age %in% seq(x, y), Sex != "Total") %>%
-        calculate_poisson_expectation(
-          grouping_vars = c("Diagnosis", "Sex")
-        ) %>%
-        mutate(
-          Age = paste(x, y, sep="-")
-        )
-    }
-  ) %>%
-  bind_rows(expectation_table)
 
 expectation_table %>%
   filter(Age == "Total") %>%
@@ -203,13 +165,21 @@ expectation_table %>%
 As a next step, impact can be estimated as risk differences.
 
 ```{r message=FALSE, warning=FALSE}
+source("../scripts/risk_difference.R", chdir=TRUE)
+
 riskdiff_table <- expectation_table %>%
   filter(Period %in% seq(2020, 2021)) %>%
-  calculate_risk_difference()
+  pivot_longer(
+    one_of("Expected_numbers", "N_cases"), values_to="N_cases"
+  ) %>%
+  calculate_risk_difference(
+    c("Diagnosis", "Period", "Age", "Sex"),
+    list(name=c("Expected_numbers", "N_cases"))
+  )
 
 riskdiff_table %>%
   filter(!Age %in% c("0-9", "10-19", "20-29", "30-39", "90-99")) %>%
-  ggplot(aes(x=RR, y=Age, color=Sex)) +
+  ggplot(aes(x=Riskdiff, y=Age, color=Sex)) +
   geom_errorbarh(
     aes(xmin=lower, xmax=upper), position=position_dodge(width=0.6)
   ) +
@@ -226,24 +196,13 @@ riskdiff_table %>%
 An alternative would be to use the same model for extrapolation and assessment of the impact. The resulting change estimates should be similar to the ones above.
 
 ```{r message=FALSE, warning=FALSE}
-yearly_impact_table <- data.frame(
-    x=seq(0, 90, 10), y=seq(9, 100, 10)
-  ) %>%
-  purrr::pmap_dfr(
-    function(x, y) {
-      example_dataset %>%
-        filter(Period < 2022) %>%
-        filter(Age %in% seq(x, y)) %>% #, Sex = "Total") %>%
-        group_split(Diagnosis, Sex) %>%
-        map_dfr(
-          calculate_impact_of_year,
-          grouping_vars = c("Diagnosis", "Sex"),
-          impacted_years = c(2020, 2021)
-        ) %>%
-        mutate(
-          Age = paste(x, y, sep="-")
-        )
-    }
+source("../scripts/covid_year_impact.R", chdir=TRUE)
+
+yearly_impact_table <- example_dataset %>%
+  filter(Age != "Total", Period < 2022) %>%
+  execute_model_on_age_bins(
+    seq(0, 90, 10), calculate_impact_of_year,
+    grouping_vars=c("Sex", "Diagnosis"), impacted_years = c(2020, 2021)
   )
 
 yearly_impact_table %>%

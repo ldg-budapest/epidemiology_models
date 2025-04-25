@@ -51,6 +51,8 @@ execute_model_on_age_bins <- function(
   input_tab, age_bins, stat_fun, add_total_age=TRUE, ...
 ) {
   
+  age_bin_ends <- c(age_bins[-1] - 1, max(as.numeric(input_tab$Age)))
+  
   out_tab <- data.frame(
       x=age_bins, y=age_bin_ends
     ) %>%

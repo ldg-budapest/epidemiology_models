@@ -10,7 +10,7 @@ library(purrr)
 library(tibble)
 library(epitools)
 
-source("shared_wrappers.R")
+source("accessory_utils.R")
 
 #' Calculate the estimated impact and the Confidence Interval from a Poisson-model
 #'

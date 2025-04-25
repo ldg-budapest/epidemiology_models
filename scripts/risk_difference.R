@@ -10,7 +10,7 @@ library(purrr)
 library(tibble)
 library(epitools)
 
-source("shared_wrappers.R")
+source("accessory_utils.R")
 
 #' A helper function to calculate RR layer-wise; it is intended to be used within a pmap wrapper.
 #'

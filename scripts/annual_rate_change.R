@@ -12,7 +12,7 @@ library(purrr)
 library(lmtest)
 library(sandwich)
 
-source("shared_wrappers.R")
+source("accessory_utils.R")
 
 
 #' Calculate the estimated value and the Confidence Interval from a Poisson-model
