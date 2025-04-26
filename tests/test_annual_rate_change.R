@@ -2,7 +2,7 @@
 # Test rate change calculation                              #
 #############################################################
 
-source("../scripts/annual_rate_change.R")
+source("../scripts/annual_rate_change.R", chdir=TRUE)
 
 age_10_dataset <- example_dataset %>%
   filter(Age != "Total") %>%
@@ -26,9 +26,7 @@ age_10_dataset <- example_dataset %>%
 change_estimations <- age_10_dataset %>%
   filter(Period %in% seq(2011, 2019)) %>%
   filter(Age != "Total", Sex != "Total") %>%
-  calculate_poisson_rate(
-    c("Diagnosis")
-  )
+  calculate_poisson_rate(c("Diagnosis"))
 
 estimated_total_changes <- change_estimations  %>%
   mutate(

@@ -2,14 +2,12 @@
 # Test COVID impact model                                   #
 #############################################################
 
-source("../scripts/risk_change_covid_years.R")
+source("../scripts/covid_year_impact.R", chdir=TRUE)
 
 yearly_impact_table <- example_dataset %>%
   filter(Period < 2022) %>%
   filter(Age %in% seq(60, 69)) %>%
-  group_split(Diagnosis, Sex) %>%
-  map_dfr(
-    calculate_impact_of_year,
+  calculate_impact_of_year(
     grouping_vars = c("Diagnosis", "Sex"),
     impacted_years = c(2020, 2021)
   )

@@ -144,28 +144,28 @@ get_esp_pop <- function(
 #'
 #' @param input_tab A dataframe with grouping columns, like age group and year, crude numbers and population size.
 #' @param standard_population Indicates if an ESP population should be used; also accepts a dataframe with weights.
-#' @param grouping_cols The columns that identify strata. At least Sex, Age and Period (Year) will be required.
-#' @param extra_grouping_cols A shortcut to just add a layer (like Diagnosis) over the usual grouping layers.
+#' @param grouping_vars The columns that identify strata. At least Sex, Age and Period (Year) will be required.
+#' @param extra_grouping_vars A shortcut to just add a layer (like Diagnosis) over the usual grouping layers.
 #' @return A dataframe with the standardized rates.
 #' @examples
 #' add_standardized_rate(calculate_standardized_rate, "esp2013")
 calculate_standardized_rate <- function(
     input_tab, standard_population = NA,
-    grouping_cols = c("Age", "Sex", "Period"),
-    extra_grouping_cols = c(), dg_cols= c()
+    grouping_vars = c("Age", "Sex", "Period"),
+    extra_grouping_vars = c(), dg_cols= c()
   ) {
   
-  if (!is.null(extra_grouping_cols)) grouping_cols <- c(extra_grouping_cols, grouping_cols)
+  if (!is.null(extra_grouping_vars)) grouping_vars <- c(extra_grouping_vars, grouping_vars)
   
   # TODO: add some more checks
-  #stopifnot(all(grouping_cols %in% colnames(input_tab)), "Expected columns missing")
+  #stopifnot(all(grouping_vars %in% colnames(input_tab)), "Expected columns missing")
   
   # The initial step is to calculate simple raw rates, without any weighting
   rate_tab <- input_tab %>%
     mutate(
       N_cases     = ifelse(is.na(N_cases), 0, N_cases)
     ) %>%
-    group_by(across(all_of(grouping_cols))) %>%
+    group_by(across(all_of(grouping_vars))) %>%
     summarise(
       N_cases     = sum(N_cases, na.rm=TRUE),
       Population  = sum(Population, na.rm=TRUE)
@@ -248,7 +248,7 @@ calculate_standardized_rate <- function(
         Spc_rate    = Std_rate * Std_size / Std_sum
       ) %>%
       # Summarize for total population
-      group_by(across(all_of(setdiff(grouping_cols, "Age")))) %>%
+      group_by(across(all_of(setdiff(grouping_vars, "Age")))) %>%
       summarise(
         Std_rate    = sum(Spc_rate, na.rm=TRUE),
         N_cases     = sum(N_cases, na.rm=TRUE),
@@ -270,6 +270,6 @@ calculate_standardized_rate <- function(
       CI_lo       = Std_rate - CI_margin,
       CI_hi       = Std_rate + CI_margin
     ) %>%
-    select(one_of(grouping_cols), Std_rate, CI_lo, CI_hi, any_of(dg_cols))
+    select(one_of(grouping_vars), Std_rate, CI_lo, CI_hi, any_of(dg_cols))
   
 }

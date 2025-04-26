@@ -10,72 +10,7 @@ library(purrr)
 library(tibble)
 library(epitools)
 
-
-#' A helper function to calculate RR layer-wise; it is intended to be used within a pmap wrapper.
-#'
-#' @param N_cases Number of observed cases.
-#' @param Population Population on which the observations are made.
-#' @param Expected_numbers Number of expected cases.
-#' @param Population_base Base population used to calculate expectetions. Needs to be declared, even if same as Population.
-#' @return A dataframe with one single row, containing input data and risk difference.
-#' @examples
-#' .errorprone_rr_for_stratum(10, 100, 25, 200)
-.errorprone_rr_for_stratum <- function(N_cases, Population, Expected_numbers, Population_base, ...){
-  
-  tryCatch(
-    expr = {
-      out_df <- data.frame(...)
-      in_data <- matrix(
-        c(
-          Population-N_cases, Population_base-Expected_numbers,
-          N_cases, Expected_numbers
-        ),
-        nrow=2
-      )
-      
-      rr_res <- in_data %>%
-        epitools::riskratio() %>%
-        .$measure %>%
-        .[2,]
-      
-      out_df %>%
-        mutate(
-          RR    = 1 - rr_res["estimate"],
-          lower = 1 - rr_res["upper"],
-          upper = 1 - rr_res["lower"]
-        )
-    },
-    error = function(e){
-      data.frame(...)
-    }
-  )
-}
-
-
-#' Calculate the change in disease (or dectection) risk (chance), 
-#' based on a dataframe containing expected numbers, observed numbers and
-#' the population(s) these numbers should be projected to.
-#'
-#' @param in_tab The input dataframe containg case numbers and base population size.
-#' @return A dataframe with risk difference and 95%CI.
-#' @examples
-#' calculate_risk_difference(expectations_table)
-calculate_risk_difference <- function(in_tab){
-  
-  if(! "Population_base" %in% colnames(in_tab)) {
-    in_tab$Population_base <- in_tab$Population
-  }
-
-  in_tab %>%
-    mutate(
-      N_cases           = round(N_cases, 0),
-      Population        = round(Population, 0),
-      Expected_numbers = round(Expected_numbers, 0),
-      Population_base   = round(Population_base, 0)
-    ) %>%
-    purrr::pmap_dfr(.errorprone_rr_for_stratum)
-}
-
+source("accessory_utils.R")
 
 #' Calculate the estimated impact and the Confidence Interval from a Poisson-model
 #'
@@ -116,10 +51,11 @@ calculate_risk_difference <- function(in_tab){
 #' @param impacted_years Years, where the impact (difference) is estimated.
 #' @return A dataframe with grouping variables and an estimate of the impact for the given period(s).
 #' @examples
-#' calculate_impact_of_year("Diagnosis", 2011, 2019)
-calculate_impact_of_year <- function(
-    in_tab, grouping_vars, impacted_years = c(2020, 2021), ...
+#' .calculate_impact_of_year_for_layer()"Diagnosis", 2011, 2019)
+.calculate_impact_of_year_for_layer <- function(
+    in_tab, grouping_vars, impacted_years, ...
 ) {
+  
   model_input <- in_tab %>%
     mutate(
       N_cases  = round(N_cases, 0),
@@ -154,4 +90,19 @@ calculate_impact_of_year <- function(
       model, distinct(in_tab[, grouping_vars])
     )
 
+}
+
+#' @param in_tab Input dataframe, containing case numbers, population size and time informaiton.
+#' @param grouping_vars  The columns that identify strata, in addtion to Age and Sex.
+#' @param impacted_years Years, where the impact (difference) is estimated.
+#' @return A dataframe with grouping variables and an estimate of the impact for the given period(s).
+#' @examples
+#' calculate_impact_of_year("Diagnosis", 2011, 2019)
+calculate_impact_of_year <- function(
+    in_tab, grouping_vars, impacted_years, ...
+) {
+  calculate_model_across_layers(
+    in_tab, .calculate_impact_of_year_for_layer, grouping_vars=grouping_vars,
+    impacted_years=impacted_years, ...
+  )
 }

@@ -8,6 +8,8 @@ library(tidyr)
 library(dplyr)
 library(purrr)
 
+source("accessory_utils.R")
+
 #' @param model_input Input dataframe, containing cases, age, year, population, in prespecified format.
 #' @param base_min Starting year (time) of the period to use for regression.
 #' @param base_max End year (time) of the period to use for regression.
