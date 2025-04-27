@@ -91,7 +91,7 @@ test_that(
 )
 test_that(
   "Expected values",
-  expect_equal(dummy_results$v, c("11", "15"))
+  expect_equal(dummy_results$v, c(11, 15))
 )
 
 
