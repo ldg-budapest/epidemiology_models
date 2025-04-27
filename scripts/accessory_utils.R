@@ -8,6 +8,8 @@ library(tidyr)
 library(dplyr)
 library(purrr)
 
+# Turn off an annoying warning related to summarizing groups
+options(dplyr.summarise.inform = FALSE)
 
 # Error handling for strata where statistic cannot be calculated
 execute_model_safely <- function(
@@ -38,6 +40,7 @@ execute_model_safely <- function(
 
 # Convenience function to apply the statistical calculation to individual strata
 calculate_model_across_layers <- function(in_tab, stat_fun, grouping_vars, ...) {
+  
   in_tab %>%
     group_by(across(all_of(grouping_vars))) %>%
     group_split() %>%

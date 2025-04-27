@@ -113,6 +113,9 @@ get_esp_pop <- function(
       Std_sum = sum(Std_size)
     ) %>%
     ungroup()
+  
+  age_weight_tab %>%
+    right_join(expand(age_weight_tab, Age, Sex))
 
 }
 
@@ -176,6 +179,12 @@ calculate_standardized_rate <- function(
       Std_rate    = ifelse(
         Population == 0, NA_real_, Std_rate
       )
+    )
+  
+  rate_tab <- rate_tab %>%
+    right_join(
+      expand(rate_tab, !!!select(rate_tab, all_of(grouping_vars))),
+      by = grouping_vars
     )
   
   # A major bifurcation point is if direct standardization should be used;
@@ -243,7 +252,7 @@ calculate_standardized_rate <- function(
     
     # Calculate the weighted rates (first, for age groups)
     rate_tab <- rate_tab %>%
-      right_join(age_weight_tab) %>%
+      inner_join(age_weight_tab, by=setdiff(colnames(age_weight_tab), c("Std_size", "Std_sum"))) %>%
       mutate(
         Spc_rate    = Std_rate * Std_size / Std_sum
       ) %>%
