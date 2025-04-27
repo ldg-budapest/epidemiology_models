@@ -254,7 +254,7 @@ calculate_standardized_rate <- function(
     rate_tab <- rate_tab %>%
       inner_join(age_weight_tab, by=setdiff(colnames(age_weight_tab), c("Std_size", "Std_sum"))) %>%
       mutate(
-        Spc_rate    = Std_rate * Std_size / Std_sum
+        Spc_rate    = 2 * Std_rate * Std_size / Std_sum
       ) %>%
       # Summarize for total population
       group_by(across(all_of(setdiff(grouping_vars, "Age")))) %>%
