@@ -112,7 +112,9 @@ get_esp_pop <- function(
       Std_size = Std_size / Std_sum * 100000,
       Std_sum = sum(Std_size)
     ) %>%
-    ungroup() %>%
+    ungroup()
+  
+  age_weight_tab %>%
     right_join(expand(age_weight_tab, Age, Sex))
 
 }
