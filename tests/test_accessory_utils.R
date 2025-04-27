@@ -2,7 +2,8 @@
 # Test that helper functions work as expected               #
 #############################################################
 
-source("../scripts/accessory_utils.R", chdir=TRUE)
+source("../scripts/accessory_utils.R", chdir=TRUE)#######
+source("../scripts/standardized_rates.R", chdir=TRUE)
 
 
 # Testing safe execution wrapper
