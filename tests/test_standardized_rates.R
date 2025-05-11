@@ -88,7 +88,7 @@ standardized_missing_table <- example_dataset %>%
   ) %>%
   calculate_standardized_rate(
     extra_grouping_vars="Diagnosis",
-    standard_population = "esp213"
+    standard_population = "esp2013"
   )
 
 test_that(

@@ -263,7 +263,7 @@ calculate_standardized_rate <- function(
         N_cases     = sum(N_cases, na.rm=TRUE),
         Population  = sum(Population, na.rm=TRUE),
         Std_size    = sum(Std_size, na.rm=TRUE),
-        Std_sum    = unique(Std_sum, na.rm=TRUE)
+        Std_sum     = unique(Std_sum, na.rm=TRUE)
       ) %>%
       ungroup() %>%
       mutate( 
