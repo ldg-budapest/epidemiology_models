@@ -155,7 +155,8 @@ get_esp_pop <- function(
 calculate_standardized_rate <- function(
     input_tab, standard_population = NA,
     grouping_vars = c("Age", "Sex", "Period"),
-    extra_grouping_vars = c(), dg_cols= c()
+    extra_grouping_vars = c(), dg_cols= c(),
+    use_age_subsets_only = FALSE, custom_breaks = NULL
   ) {
   
   if (!is.null(extra_grouping_vars)) grouping_vars <- c(extra_grouping_vars, grouping_vars)
@@ -217,25 +218,31 @@ calculate_standardized_rate <- function(
       
       # It is still easy to retrieve ESP weights
       if(grepl("esp", standard_population)) {
-        
-        # Age group labels are retrieved from input data; expected to have a specific format
-        age_weight_breaks <- rate_tab %>%
-          distinct(Age) %>%
-          mutate(
-            Age = as.numeric(gsub("(-|\\s|\\.).*", "", Age))
-          ) %>%
-          arrange(Age) %>%
-          .$Age
+
+        if(is.null(custom_breaks)) {
+          # Age group labels are retrieved from input data; expected to have a specific format
+          age_weight_breaks <- rate_tab %>%
+            distinct(Age) %>%
+            mutate(
+              Age = as.numeric(gsub("(-|\\s|\\.).*", "", Age))
+            ) %>%
+            arrange(Age) %>%
+            .$Age
+        } else {
+          age_weight_breaks <- custom_breaks
+        }
         
         # Calling the function that builds the weights table
         age_weight_tab <- get_esp_pop(
           gsub("esp", "", standard_population),
-          age_weight_breaks
+          age_weight_breaks, include_age_extremes=!use_age_subsets_only
         ) %>%
-          # Should add up to 100000, just because the getter function works this way
+          # Should add up to 100000
+          group_by() %>%
           mutate(
-            Std_sum = 100000
-          )
+            Std_sum = sum(Std_size, na.rm=TRUE)
+          ) %>%
+          ungroup()
         
       } else {
         if(standard_population %in% rate_tab$Period) {
