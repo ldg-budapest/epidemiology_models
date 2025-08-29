@@ -19,15 +19,15 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        r-version: ['4.4.1']
+        r-version: ['4.4.2']
 
     steps:
       - uses: actions/checkout@v4
       - name: Set up R ${{ matrix.r-version }}
-        uses: r-lib/actions/setup-r@f57f1301a053485946083d7a45022b278929a78a
+        uses: r-lib/actions/setup-r@v1
         with:
           r-version: ${{ matrix.r-version }}
       - name: Install dependencies
