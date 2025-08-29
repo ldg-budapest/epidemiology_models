@@ -20,21 +20,18 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        r-version: ['4.4.2']
-
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+    
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up R ${{ matrix.r-version }}
+      - uses: actions/checkout@v3
+      - name: Set up R
         uses: r-lib/actions/setup-r@v1
-        with:
-          r-version: ${{ matrix.r-version }}
+      
       - name: Install dependencies
         run: install.packages(c("dplyr", "tidyr", "purrr", "testthat", "lmtest", "sandwich", "epitools"))
         shell: Rscript {0}
         
       - name: Check tests
-        run: |
-          source("tests/test_main.R")
+        run: source("tests/test_main.R")
         shell: Rscript {0}
