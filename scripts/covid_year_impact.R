@@ -59,8 +59,8 @@ source("accessory_utils.R")
   model_input <- in_tab %>%
     mutate(
       N_cases  = round(N_cases, 0),
-      Period   = factor(Period),
-      Age      = as.numeric(factor(Age)),
+      Period   = factor(as.character(Period)),
+      Age      = factor(Age),
       logpop   = log(Population)
     )
   
@@ -71,7 +71,13 @@ source("accessory_utils.R")
     )
   }
   
-  custom_formula <- "N_cases ~ Period + Age + offset(logpop)" %>%
+  if (n_distinct(in_tab$Age) == 1) {
+    custom_formula <- "N_cases ~ Period + offset(logpop)"
+  } else {
+    custom_formula <- "N_cases ~ Period + Age + offset(logpop)"
+  }
+  
+  custom_formula <- custom_formula %>%
     c(paste("Period", impacted_years, sep="_")) %>%
     paste(collapse = " + ") %>%
     as.formula()
