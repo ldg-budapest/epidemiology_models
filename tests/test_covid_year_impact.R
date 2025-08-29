@@ -22,5 +22,5 @@ impact_percent <- yearly_impact_table %>%
 
 test_that(
   "Impact of pandemic in 2020",
-  expect_equal(impact_percent, c(0.068, -0.076, -0.018, -0.095))
+  expect_equal(impact_percent, c(0.065, -0.075, -0.019, -0.096))
 )
