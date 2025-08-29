@@ -259,6 +259,9 @@ calculate_standardized_rate <- function(
     
     # Calculate the weighted rates (first, for age groups)
     rate_tab <- rate_tab %>%
+      mutate(
+        Age = ifelse(grepl("\\-(x|X)", Age), gsub("\\-(x|X)", "", Age), Age)
+      ) %>%
       inner_join(age_weight_tab, by=setdiff(colnames(age_weight_tab), c("Std_size", "Std_sum"))) %>%
       mutate(
         Spc_rate    = Std_rate * Std_size / Std_sum
